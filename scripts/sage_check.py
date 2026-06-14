@@ -16,9 +16,13 @@ except Exception as e:  # noqa: BLE001
     abi = ("undefined symbol" in msg
            or "symbol not found" in msg
            or "incompatible" in msg
-           or "_c" in msg and "cannot import" in msg)
+           or "glibcxx" in msg          # wheel needs newer libstdc++ than the image
+           or "glibc_" in msg
+           or "cannot open shared object" in msg
+           or "cannot load" in msg
+           or ("_c" in msg and "cannot import" in msg))
     if abi:
-        print("sage_check: ABI MISMATCH ->", e)
+        print("sage_check: WHEEL UNUSABLE (ABI/loader) ->", e)
         sys.exit(2)
     # libcuda / "no CUDA-capable device" / driver-not-found => no GPU on builder.
     print("sage_check: import deferred (no GPU at build, wheel ABI looks fine) ->", e)
