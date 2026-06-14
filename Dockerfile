@@ -35,9 +35,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends software-proper
  && rm -rf /var/lib/apt/lists/*
 
 # ---- 2. Python 3.12 venv + tooling ----
+# constraints.txt must exist before ANY pip call (PIP_CONSTRAINT is set globally).
+COPY constraints.txt /opt/constraints.txt
 RUN python3.12 -m venv /opt/venv \
  && python -m pip install --upgrade pip setuptools wheel uv
-COPY constraints.txt /opt/constraints.txt
 
 # ---- 3. torch cu128 FIRST (auto-pulls triton 3.4.0). Assert before building on it. ----
 RUN pip install torch==2.8.0+cu128 torchvision==0.23.0+cu128 torchaudio==2.8.0+cu128 \
