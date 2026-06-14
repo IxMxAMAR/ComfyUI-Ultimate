@@ -50,7 +50,9 @@ jobs:
           provenance: false
 
       - name: Node-import gate (all 29 packs must import)
-        run: docker run --rm ${{ env.IMAGE }}:ci-${{ github.sha }} bash /opt/scripts/ci_node_import_gate.sh
+        # --entrypoint bash overrides the image ENTRYPOINT (start.sh) so we actually
+        # run the gate script (not launch full ComfyUI without --cpu).
+        run: docker run --rm --entrypoint bash ${{ env.IMAGE }}:ci-${{ github.sha }} /opt/scripts/ci_node_import_gate.sh
 
       - name: Tag + push (only on push / dispatch, after gates pass)
         if: github.event_name != 'pull_request'
