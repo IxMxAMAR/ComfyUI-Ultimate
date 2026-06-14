@@ -46,6 +46,10 @@ RUN pip install torch==2.8.0+cu128 torchvision==0.23.0+cu128 torchaudio==2.8.0+c
  && python -c "import torch; assert torch.version.cuda=='12.8', torch.version.cuda; assert '+cu128' in torch.__version__, torch.__version__; print('torch OK', torch.__version__)"
 
 # ---- 4. Attention backends ----
+# Scripts must be present before the SageAttention step (it runs sage_check.py).
+COPY scripts/ /opt/scripts/
+RUN chmod +x /opt/scripts/*.sh
+
 # FlashAttention-2: prebuilt, cxx11abiTRUE (matches manylinux_2_28 torch 2.8.0+cu128),
 # sm_120 SASS baked in. Fallback to a source build if the URL is gone.
 RUN pip install --no-cache-dir \
@@ -93,9 +97,9 @@ WORKDIR /ComfyUI
 RUN uv pip install --no-cache -r requirements.txt
 
 # ---- 7. Custom nodes: clone 29 @ pinned commits + install per policy ----
+# (scripts already copied + chmod'd before step 4)
 COPY node_pins.txt /opt/node_pins.txt
-COPY scripts/ /opt/scripts/
-RUN chmod +x /opt/scripts/*.sh && bash /opt/scripts/install_nodes.sh /opt/node_pins.txt
+RUN bash /opt/scripts/install_nodes.sh /opt/node_pins.txt
 
 # ---- 8. opencv + onnxruntime FINAL normalization (single winner each) ----
 RUN pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python opencv-contrib-python-headless onnxruntime onnxruntime-gpu || true \
