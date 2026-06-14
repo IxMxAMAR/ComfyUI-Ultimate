@@ -34,10 +34,9 @@ jobs:
       - name: Relocate Docker storage to /mnt (~70GB) for the ~20GB image + cache
         run: |
           sudo systemctl stop docker docker.socket || true
-          sudo mkdir -p /mnt/docker /mnt/tmp
+          sudo mkdir -p /mnt/docker
           echo '{ "data-root": "/mnt/docker" }' | sudo tee /etc/docker/daemon.json
           sudo systemctl start docker
-          echo "TMPDIR=/mnt/tmp" >> "$GITHUB_ENV"
           docker info | grep -i "docker root dir" || true
           df -h / /mnt || true
 
