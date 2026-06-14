@@ -22,12 +22,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # ---- 1. System deps (python3.12 via deadsnakes) ----
 RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common gnupg ca-certificates curl \
  && add-apt-repository -y ppa:deadsnakes/ppa \
+ && add-apt-repository -y ppa:ubuntu-toolchain-r/test \
  && apt-get update && apt-get install -y --no-install-recommends \
       python3.12 python3.12-venv python3.12-dev \
       git git-lfs aria2 wget \
       ffmpeg libsndfile1 libglib2.0-0 libgomp1 libgl1 \
       build-essential ninja-build \
       openssh-server \
+ && apt-get install -y --only-upgrade libstdc++6 \
+ && { strings /usr/lib/x86_64-linux-gnu/libstdc++.so.6 | grep -q GLIBCXX_3.4.32 \
+      && echo "libstdc++ provides GLIBCXX_3.4.32 OK" \
+      || { echo "FATAL: GLIBCXX_3.4.32 missing after libstdc++ upgrade"; exit 1; }; } \
  && git lfs install \
  && ssh-keygen -A \
  && sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config \

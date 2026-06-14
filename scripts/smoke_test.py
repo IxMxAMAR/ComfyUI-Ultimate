@@ -45,13 +45,23 @@ from huggingface_hub import split_torch_state_dict_into_shards  # noqa: F401,E40
 import transformers  # noqa: F401,E402
 import diffusers  # noqa: F401,E402
 
-# --- attention backends (best-effort; not build-blockers) ---
+# --- attention backends ---
+# sageattention MUST import if it's installed: a packaging/ABI/loader failure
+# (e.g. GLIBCXX too old) is a real bug that would break it on the GPU pod, so we
+# fail the build. A CUDA/no-GPU error at import is environmental on the CI builder
+# and is only a warning.
 if present("sageattention"):
     try:
         import sageattention  # noqa: F401
         print("sageattention import OK")
-    except Exception as e:  # import may need CUDA at load on a GPU-less builder
-        print(f"WARN: sageattention present but import deferred (no GPU at build?): {e}")
+    except Exception as e:
+        msg = str(e).lower()
+        loader_bug = any(k in msg for k in (
+            "glibcxx", "glibc_", "undefined symbol", "symbol not found",
+            "cannot open shared object", "cannot load"))
+        if loader_bug:
+            raise SystemExit(f"FATAL: sageattention import broken (packaging/ABI): {e}")
+        print(f"WARN: sageattention import deferred (environmental/no-GPU at build): {e}")
 else:
     print("WARN: sageattention not installed (SDPA fallback)")
 print("flash_attn present" if present("flash_attn") else "WARN: flash_attn not installed (optional)")
