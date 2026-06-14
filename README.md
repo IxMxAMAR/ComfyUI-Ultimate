@@ -28,7 +28,7 @@ Use an **RTX-class GPU** (RTX VSR / nvidia-vfx node needs a consumer RTX; SageAt
 |---|---|
 | `CIVITAI_API_KEY` | Civicomfy downloads from Civitai |
 | `HF_TOKEN` | HuggingFace gated downloads |
-| `JUPYTER_TOKEN` | JupyterLab token (default `comfy`) |
+| `JUPYTER_TOKEN` | JupyterLab token — default empty = **no auth**; set it to require a token |
 | `PUBLIC_KEY` | SSH public key (RunPod injects this) |
 | `COMFY_ARGS` | extra args appended to `python main.py` |
 | `WORKSPACE` | persistent volume mount (default `/workspace`) |

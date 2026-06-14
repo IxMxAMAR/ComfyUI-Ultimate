@@ -22,14 +22,19 @@ if [ -n "${PUBLIC_KEY:-}" ]; then
 fi
 mkdir -p /run/sshd && /usr/sbin/sshd && echo "[start] sshd up on :22" || echo "[start] WARN sshd failed"
 
-# --- JupyterLab (token auth; proxy-friendly flags for RunPod) ---
-JUPYTER_TOKEN="${JUPYTER_TOKEN:-comfy}"
+# --- JupyterLab (open/no-auth by default; set JUPYTER_TOKEN to require one) ---
+JUPYTER_TOKEN="${JUPYTER_TOKEN:-}"
 nohup jupyter lab --allow-root --ip=0.0.0.0 --port=8888 --no-browser \
-  --ServerApp.token="$JUPYTER_TOKEN" --ServerApp.root_dir="$WORKSPACE" \
+  --ServerApp.token="$JUPYTER_TOKEN" --ServerApp.password='' \
+  --ServerApp.root_dir="$WORKSPACE" \
   --ServerApp.allow_origin='*' --ServerApp.allow_remote_access=True \
   --ServerApp.trust_xheaders=True --ServerApp.disable_check_xsrf=True \
   > /var/log/jupyter.log 2>&1 &
-echo "[start] JupyterLab up on :8888 (token: $JUPYTER_TOKEN)"
+if [ -n "$JUPYTER_TOKEN" ]; then
+  echo "[start] JupyterLab up on :8888 (token: $JUPYTER_TOKEN)"
+else
+  echo "[start] JupyterLab up on :8888 (no auth)"
+fi
 
 # --- filebrowser (noauth, writable db in /tmp) ---
 if command -v filebrowser >/dev/null 2>&1; then
