@@ -53,16 +53,22 @@ RUN pip install --no-cache-dir \
    || pip install flash-attn==2.8.3.post1 --no-build-isolation \
    || echo "WARN: flash-attn install failed (optional backend)"
 
-# SageAttention 2.2: hybrid + best-effort. Try the community Blackwell wheel and
-# classify the import (sage_check.py tells an ABI mismatch apart from "no GPU at
-# build"). On ABI mismatch / missing wheel, compile from source vs torch 2.8.0.
-# Never fails the build — if everything fails, the image ships with SDPA fallback.
+# SageAttention 2.2: trusted prebuilt-wheel chain + best-effort. Try Kijai's wheel
+# first (the ComfyUI/WanVideoWrapper 5090 community runs it — sm80+sm89 kernels,
+# Blackwell-fp8-compatible via the sm89 path), then thekie, each validated by
+# sage_check.py (tells an ABI mismatch apart from "no GPU at build"). Only if all
+# prebuilts are ABI-incompatible do we compile from source vs torch 2.8.0.
+# Never fails the build — worst case ships with SDPA fallback.
 RUN bash -c '\
-  if pip install --no-cache-dir "https://github.com/thekie/sageattention-wheel/releases/download/2.2.0.post1/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl" \
-     && python /opt/scripts/sage_check.py; then \
-    echo "SageAttention: using prebuilt wheel"; \
+  try_wheel() { pip uninstall -y sageattention >/dev/null 2>&1 || true; \
+                pip install --no-cache-dir --no-deps --force-reinstall "$1" \
+                && python /opt/scripts/sage_check.py; }; \
+  if try_wheel "https://huggingface.co/Kijai/PrecompiledWheels/resolve/main/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl"; then \
+    echo "SageAttention: Kijai prebuilt wheel OK"; \
+  elif try_wheel "https://github.com/thekie/sageattention-wheel/releases/download/2.2.0.post1/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl"; then \
+    echo "SageAttention: thekie prebuilt wheel OK"; \
   else \
-    echo "SageAttention: wheel unusable -> compiling from source"; \
+    echo "SageAttention: no usable prebuilt wheel -> compiling from source"; \
     pip uninstall -y sageattention || true; \
     ( git clone --depth 1 https://github.com/thu-ml/SageAttention.git /tmp/sage \
       && cd /tmp/sage \
