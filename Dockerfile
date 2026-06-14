@@ -89,7 +89,7 @@ RUN uv pip install --no-cache \
       protobuf mediapipe pillow scipy scikit-image scikit-learn \
       kornia timm sentencepiece einops matplotlib simpleeval \
       open-clip-torch clip-interrogator gguf ultralytics spandrel \
-      jupyterlab
+      onnx jupyterlab
 
 # ---- 6. ComfyUI core (v0.24.0) ----
 RUN git clone --depth 1 --branch v0.24.0 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI

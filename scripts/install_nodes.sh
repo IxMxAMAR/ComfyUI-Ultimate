@@ -44,6 +44,12 @@ while read -r name url sha; do
       export SAM2_BUILD_CUDA=0      # don't compile a CUDA ext at build time
       install_reqs "$dest"
       ;;
+    Nvidia_RTX_Nodes_ComfyUI)
+      # Dep is in pyproject (nvidia-vfx), no requirements.txt -> install explicitly
+      # from NVIDIA's index (cp312-abi3 manylinux wheel, ~600MB, bundles TRT/cuDNN).
+      pip install --no-cache-dir nvidia-vfx --extra-index-url https://pypi.nvidia.com/ \
+        || echo "WARN: nvidia-vfx install failed (RTX VSR node unavailable)"
+      ;;
     *)
       install_reqs "$dest"
       ;;
