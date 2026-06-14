@@ -105,10 +105,12 @@ RUN bash /opt/scripts/install_nodes.sh /opt/node_pins.txt
 RUN pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python opencv-contrib-python-headless onnxruntime onnxruntime-gpu || true \
  && uv pip install --no-cache opencv-contrib-python-headless==4.11.0.86 onnxruntime-gpu==1.22.0
 
-# ---- 9. Neutralize ComfyUI-Manager torch_rollback + wire pip_overrides ----
+# ---- 9. Wire ComfyUI-Manager pip_overrides (onnxruntime -> onnxruntime-gpu).
+# torch_rollback is NOT regex-patched (that corrupted manager_util.py). It uses
+# standard pip, so the persistent runtime PIP_CONSTRAINT (torch==2.8.0+cu128)
+# already neutralizes it — a rollback attempt conflicts with the pin and no-ops. ----
 COPY pip_overrides.json /opt/pip_overrides.json
-RUN python /opt/scripts/patch_manager.py \
- && cp /opt/pip_overrides.json /ComfyUI/custom_nodes/ComfyUI-Manager/pip_overrides.json 2>/dev/null || true
+RUN cp /opt/pip_overrides.json /ComfyUI/custom_nodes/ComfyUI-Manager/pip_overrides.json 2>/dev/null || true
 
 # ---- 10. filebrowser ----
 RUN curl -fsSL https://raw.githubusercontent.com/filebrowser/filebrowser/master/get.sh | bash || echo "WARN: filebrowser install failed"
