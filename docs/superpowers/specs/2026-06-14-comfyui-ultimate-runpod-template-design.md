@@ -8,7 +8,7 @@
 
 ## 1. Goal & Scope
 
-A "batteries-included" ComfyUI Docker image where the **heavy software stack is baked in** (CUDA libs, PyTorch cu128, Triton, SageAttention, FlashAttention, 27 curated custom-node packs) and **no model weights** are baked in. Built by **GitHub Actions** and pushed to **Docker Hub**, deployable on **RunPod**.
+A "batteries-included" ComfyUI Docker image where the **heavy software stack is baked in** (CUDA libs, PyTorch cu128, Triton, SageAttention, FlashAttention, 29 curated custom-node packs) and **no model weights** are baked in. Model acquisition happens **in the ComfyUI UI at runtime** (via Civicomfy + ComfyUI-RunpodDirect — §10), not via baked weights or boot-time provisioning scripts. Built by **GitHub Actions** and pushed to **Docker Hub**, deployable on **RunPod**.
 
 - **Primary target:** RunPod **GPU Pod** (interactive — ComfyUI web UI, JupyterLab, SSH, filebrowser).
 - **Secondary target:** RunPod **Serverless** endpoint (same image, alternate entrypoint with a `handler.py`) — layered on later, not part of the first milestone.
@@ -31,7 +31,7 @@ A "batteries-included" ComfyUI Docker image where the **heavy software stack is 
 
 ---
 
-## 3. Custom Node Set (27 packs)
+## 3. Custom Node Set (29 packs)
 
 Cloned at **pinned commits** (`node_pins.txt`). Models referenced by these nodes download at runtime onto the volume — never baked.
 
@@ -46,6 +46,8 @@ Cloned at **pinned commits** (`node_pins.txt`). Models referenced by these nodes
 **Model formats/Vision:** ComfyUI-GGUF, ComfyUI-Florence2, ComfyUI-segment-anything-2
 
 **Added:** ComfyUI-RMBG (`1038lab/ComfyUI-RMBG`), ComfyUI-Utility-MegaPack (`IxMxAMAR/ComfyUI-Utility-MegaPack`), Nvidia RTX Nodes (`Comfy-Org/Nvidia_RTX_Nodes_ComfyUI`)
+
+**Model acquisition (in-UI):** Civicomfy (`MoonGoblinDev/Civicomfy` — Civitai/HF downloader, honors `CIVITAI_API_KEY`), ComfyUI-RunpodDirect (`MadiatorLabs/ComfyUI-RunpodDirect` — multi-connection direct-to-pod downloads). Both are dependency-clean: Civicomfy declares **no** Python deps; RunpodDirect declares only `aiohttp>=3.8.0` (already satisfied by core's `aiohttp>=3.11.8`). Neither moves torch/numpy/cv2/onnx.
 
 **Excluded by decision:** ReActor, the user's API node packs (NanoBanana2/Kling/ElevenLabs/etc.), insightface-dependent FaceID paths (behind a flag — §7).
 
@@ -151,7 +153,7 @@ Set **before any install** and **persists at runtime** so ComfyUI-Manager's star
 4. FlashAttention 2 (prebuilt wheel) + SageAttention 2.2 (hybrid)   # §6
 5. pre-bake the ABI-sensitive SET (numpy/numba/HF group/protobuf/mediapipe/pillow/…)
 6. ComfyUI core (git clone v0.24.0; uv pip install -r requirements.txt)
-7. custom nodes: clone all 27 @ pinned commit; install per §4.5
+7. custom nodes: clone all 29 @ pinned commit; install per §4.5
 8. opencv + onnxruntime FINAL normalization (uninstall all variants, install the one
    winner each via constraints-final.txt)    # MUST be last
 9. pip check + smoke_test.py
@@ -188,6 +190,8 @@ Packs whose deps would relocate torch/numpy/cv2/onnx are installed `--no-deps`, 
 | VideoHelperSuite | `-r requirements.txt` (cv2→headless) | — |
 | RTX Nodes | `pip install nvidia-vfx --extra-index-url https://pypi.nvidia.com/` (cp312-abi3 manylinux_2_28, ~600MB) | none |
 | rgthree, Custom-Scripts, KJNodes, cg-use-everywhere, Advanced-ControlNet, AnimateDiff-Evolved, GGUF, UltimateSDUpscale, Crystools, Utility-MegaPack | default `uv pip install -r requirements.txt` | low/none |
+| Civicomfy | clone only (no declared deps) | n/a (it *is* the in-UI downloader) |
+| ComfyUI-RunpodDirect | `uv pip install -r`/clone; `aiohttp` already satisfied | n/a (it *is* the in-UI downloader) |
 
 ### 4.7 opencv / onnxruntime normalization (final layer)
 All four cv2 distros vend the same `cv2` module and shadow each other → keep exactly **one**: `opencv-contrib-python-headless==4.11.0.86` (contrib preserves Frame-Interpolation's `ximgproc`/SIFT; headless avoids libGL/X11). `onnxruntime` (CPU) and `onnxruntime-gpu` both write `site-packages/onnxruntime/`; keep only `onnxruntime-gpu==1.22.0`. ComfyUI-Manager `pip_overrides.json`: `{"onnxruntime": "onnxruntime-gpu"}` for runtime node installs. Final step uninstalls all variants then reinstalls the winners via `constraints-final.txt`.
@@ -253,19 +257,23 @@ insightface forces `numpy<2` image-wide (numpy-1.x ABI Cython ext) — the singl
 | SSH | 22 | RunPod-injected public key |
 | filebrowser | 8080 | default login |
 
-Entrypoint (`start.sh`) launches all four, wires the volume symlinks, runs the provisioning script if set, then starts ComfyUI.
+Entrypoint (`start.sh`) launches all four, wires the volume symlinks, then starts ComfyUI. (No boot-time model provisioning — see §10.)
 
 ---
 
-## 10. Model Provisioning (runtime, env-driven)
-ai-dock style: `PROVISIONING_SCRIPT` env = URL to a bash script run on first boot that downloads checkpoints/LoRAs/VAEs into `/workspace/models/...`. Supports `HF_TOKEN` and `CIVITAI_TOKEN`. Models are **never** in the image. Ships with a couple of example provisioning scripts (e.g. SDXL set, Flux set, WAN set) the operator can point to or fork.
+## 10. Model Acquisition (in-UI, no provisioning scripts)
+Models are **never** in the image and there is **no boot-time provisioning script**. Operators pull models on demand from within the running ComfyUI UI via two baked-in nodes:
+- **Civicomfy** — search/download Civitai (and HF) models directly into the correct `models/<type>/` dirs; reads `CIVITAI_API_KEY` from the environment (set it on the RunPod template for unattended/cloud use).
+- **ComfyUI-RunpodDirect** — paste a URL (Civitai/HF/direct) and stream it straight to the pod with multi-connection downloads, queue, and progress — no local download-and-reupload.
+
+Token env vars passed through to the container for these nodes: `CIVITAI_API_KEY`, `HF_TOKEN`. Downloads land on the `/workspace` volume so they persist.
 
 ---
 
 ## 11. Reproducibility & Tags
 Three committed artifacts pin everything:
 1. `constraints.txt` — ABI intent (human-edited).
-2. `node_pins.txt` — 27 packs + VCS deps at exact commits.
+2. `node_pins.txt` — 29 packs + VCS deps at exact commits.
 3. `requirements.lock` — full `pip freeze --all` from the last green build.
 
 **Tags:** `:latest`, `:<git-sha>` (immutable/reproducible), `:cu128-torch2.8.0` (moves only on torch bump). Same Dockerfile + same 3 artifacts → byte-stable env regardless of build date.
@@ -278,7 +286,7 @@ Three committed artifacts pin everything:
 - **Secrets:** `DOCKERHUB_USER` / `DOCKERHUB_TOKEN` (PAT `ixmxamar`).
 - **Gates (push only if both pass):**
   1. `smoke_test.py` runs **inside** the build: single cv2 variant, numpy 2.2, torch cu128, HF-set coherence (`split_torch_state_dict_into_shards` import canary), and (GPU job) `CUDAExecutionProvider` + sm_120. A regression fails `docker build` itself.
-  2. **Node-import gate:** `python main.py --cpu --quick-test-for-ci` → fail on any `IMPORT FAILED`/`Cannot import`, and assert all 27 expected pack dirs appear in success lines (`/opt/expected_packs.txt`).
+  2. **Node-import gate:** `python main.py --cpu --quick-test-for-ci` → fail on any `IMPORT FAILED`/`Cannot import`, and assert all 29 expected pack dirs appear in success lines (`/opt/expected_packs.txt`).
 - **Optional** self-hosted Blackwell GPU job asserts the CUDA provider + sm_120 at runtime.
 
 ---
@@ -305,10 +313,9 @@ ComfyUI-Ultimate/
 │  ├─ patch_manager.py
 │  ├─ smoke_test.py
 │  ├─ ci_node_import_gate.sh
-│  ├─ start.sh                    # entrypoint: services + volume + provisioning
-│  └─ provisioning/               # example model-download scripts
+│  └─ start.sh                    # entrypoint: services + volume symlinks
 ├─ pip_overrides.json             # {"onnxruntime":"onnxruntime-gpu"}
-├─ expected_packs.txt             # 27 pack dir names for the CI gate
+├─ expected_packs.txt             # 29 pack dir names for the CI gate
 ├─ .github/workflows/build.yml
 └─ docs/superpowers/specs/2026-06-14-comfyui-ultimate-runpod-template-design.md
 ```
@@ -316,8 +323,8 @@ ComfyUI-Ultimate/
 ---
 
 ## 15. Milestones
-1. **M1 — Pod image:** Dockerfile + dependency strategy + attention backends + CI build/push + both gates green. Deployable interactive Pod (ComfyUI/Jupyter/SSH/filebrowser) with runtime provisioning.
-2. **M2 — Polish:** example provisioning scripts, README + RunPod template config, `requirements.lock` committed, optional GPU smoke job.
+1. **M1 — Image live (primary focus):** Dockerfile + dependency strategy + attention backends + 29 nodes + CI build/push + both gates green. A pullable image that boots an interactive Pod (ComfyUI/Jupyter/SSH/filebrowser); models pulled in-UI via Civicomfy/RunpodDirect. **No model downloading work in scope.**
+2. **M2 — Polish:** README + RunPod template config (env vars incl. `CIVITAI_API_KEY`/`HF_TOKEN`), `requirements.lock` committed, optional GPU smoke job.
 3. **M3 — Serverless:** `handler.py` + serverless entrypoint mode (same image), RunPod Serverless template.
 
 ---
