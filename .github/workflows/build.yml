@@ -6,6 +6,10 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   IMAGE: ixmxamar/comfyui-ultimate
 
