@@ -112,8 +112,12 @@ RUN pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python 
 COPY pip_overrides.json /opt/pip_overrides.json
 RUN cp /opt/pip_overrides.json /ComfyUI/custom_nodes/ComfyUI-Manager/pip_overrides.json 2>/dev/null || true
 
-# ---- 10. filebrowser ----
-RUN curl -fsSL https://raw.githubusercontent.com/filebrowser/filebrowser/master/get.sh | bash || echo "WARN: filebrowser install failed"
+# ---- 10. filebrowser (pinned binary; the get.sh installer URL 404s) ----
+RUN curl -fsSL https://github.com/filebrowser/filebrowser/releases/download/v2.31.2/linux-amd64-filebrowser.tar.gz -o /tmp/fb.tgz \
+ && tar -xzf /tmp/fb.tgz -C /usr/local/bin filebrowser \
+ && chmod +x /usr/local/bin/filebrowser && rm -f /tmp/fb.tgz \
+ && /usr/local/bin/filebrowser version \
+ || echo "WARN: filebrowser install failed"
 
 # ---- 11. Integrity checks (smoke_test fails the build; pip check is advisory) ----
 COPY expected_packs.txt /opt/expected_packs.txt
