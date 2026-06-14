@@ -12,9 +12,16 @@ tail -n 60 "$LOG"
 echo "---------------------------"
 
 rc=0
-if grep -E "IMPORT FAILED" "$LOG"; then
-  echo "::error::a custom node failed to import (see lines above)"
+# GPU-only nodes that legitimately cannot import on the GPU-less CI runner
+# (their extensions dlopen CUDA at import). They work on a real RTX pod.
+GPU_ONLY_RE="Nvidia_RTX_Nodes_ComfyUI"
+if grep -E "IMPORT FAILED" "$LOG" | grep -vE "$GPU_ONLY_RE" | grep -q .; then
+  echo "::error::a custom node failed to import:"
+  grep -E "IMPORT FAILED" "$LOG" | grep -vE "$GPU_ONLY_RE"
   rc=1
+fi
+if grep -E "IMPORT FAILED" "$LOG" | grep -qE "$GPU_ONLY_RE"; then
+  echo "NOTE: GPU-only node(s) skipped on CPU CI (will import on a real GPU): $GPU_ONLY_RE"
 fi
 
 while read -r pack; do
