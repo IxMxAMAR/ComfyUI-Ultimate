@@ -38,7 +38,8 @@ safetensors==0.5.3
 
 # --- protobuf under RMBG <6 cap, above mediapipe floor ---
 protobuf==4.25.8
-mediapipe==0.10.21
+# mediapipe 0.10.30+ dropped the numpy<2 cap (recon's 0.10.21 would hard-fail vs numpy 2.2.6)
+mediapipe==0.10.35
 pillow==11.3.0
 simpleeval==1.0.3
 
