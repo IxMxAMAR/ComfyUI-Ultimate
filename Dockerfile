@@ -52,17 +52,24 @@ RUN pip install --no-cache-dir \
    || pip install flash-attn==2.8.3.post1 --no-build-isolation \
    || echo "WARN: flash-attn install failed (optional backend)"
 
-# SageAttention 2.2: hybrid — try the community Blackwell wheel + import-test;
-# on failure compile from source vs our exact torch 2.8.0 (nvcc from devel base).
-RUN ( pip install --no-cache-dir \
-        "https://github.com/thekie/sageattention-wheel/releases/download/2.2.0.post1/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl" \
-      && python -c "import sageattention; print('sage wheel OK')" ) \
-   || ( echo "sage wheel unusable -> building from source vs torch 2.8.0" \
-        && git clone --depth 1 https://github.com/thu-ml/SageAttention.git /tmp/sage \
-        && cd /tmp/sage \
-        && TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;12.0" EXT_PARALLEL=2 NVCC_APPEND_FLAGS="--threads 4" MAX_JOBS=4 \
-           pip install --no-build-isolation . \
-        && cd / && rm -rf /tmp/sage )
+# SageAttention 2.2: hybrid + best-effort. Try the community Blackwell wheel and
+# classify the import (sage_check.py tells an ABI mismatch apart from "no GPU at
+# build"). On ABI mismatch / missing wheel, compile from source vs torch 2.8.0.
+# Never fails the build — if everything fails, the image ships with SDPA fallback.
+RUN bash -c '\
+  if pip install --no-cache-dir "https://github.com/thekie/sageattention-wheel/releases/download/2.2.0.post1/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl" \
+     && python /opt/scripts/sage_check.py; then \
+    echo "SageAttention: using prebuilt wheel"; \
+  else \
+    echo "SageAttention: wheel unusable -> compiling from source"; \
+    pip uninstall -y sageattention || true; \
+    ( git clone --depth 1 https://github.com/thu-ml/SageAttention.git /tmp/sage \
+      && cd /tmp/sage \
+      && TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;12.0" EXT_PARALLEL=2 NVCC_APPEND_FLAGS="--threads 4" MAX_JOBS=4 \
+         pip install --no-build-isolation . ) \
+      || echo "WARN: SageAttention source build failed; shipping without it (SDPA fallback)"; \
+    rm -rf /tmp/sage; \
+  fi'
 
 # ---- 5. Pre-bake the ABI-sensitive set (lock it before node requirements run) ----
 RUN uv pip install --no-cache \

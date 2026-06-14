@@ -45,17 +45,16 @@ from huggingface_hub import split_torch_state_dict_into_shards  # noqa: F401,E40
 import transformers  # noqa: F401,E402
 import diffusers  # noqa: F401,E402
 
-# --- attention backends installed ---
-assert present("sageattention"), "sageattention not installed"
-try:
-    import sageattention  # noqa: F401
-    print("sageattention import OK")
-except Exception as e:  # import may need CUDA at load on some builds
-    print(f"WARN: sageattention present but import deferred (no GPU at build?): {e}")
-if present("flash_attn"):
-    print("flash_attn present")
+# --- attention backends (best-effort; not build-blockers) ---
+if present("sageattention"):
+    try:
+        import sageattention  # noqa: F401
+        print("sageattention import OK")
+    except Exception as e:  # import may need CUDA at load on a GPU-less builder
+        print(f"WARN: sageattention present but import deferred (no GPU at build?): {e}")
 else:
-    print("WARN: flash_attn not installed (optional)")
+    print("WARN: sageattention not installed (SDPA fallback)")
+print("flash_attn present" if present("flash_attn") else "WARN: flash_attn not installed (optional)")
 
 # --- GPU-only checks (skipped on CPU CI builder) ---
 if torch.cuda.is_available():
