@@ -1,10 +1,10 @@
-# node_pins.txt — 29 custom-node packs pinned to exact commits (refreshed 2026-06-24, ComfyUI v0.26.0).
+# node_pins.txt — 29 custom-node packs pinned to exact commits (refreshed 2026-07-08, ComfyUI v0.27.0).
 # Format:  <dirname> <git_url> <commit_sha>
 # install_nodes.sh clones each into /ComfyUI/custom_nodes/<dirname> @ <commit_sha>.
-ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git 8ff2ba8ffe1b
+ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git a2a90adc72cb
 rgthree-comfy https://github.com/rgthree/rgthree-comfy.git 27b4f4cdcf3b
 ComfyUI-Custom-Scripts https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git 609f3afaa74b
-ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git 988a877bba8d
+ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git e27a505b3ba6
 ComfyUI_essentials https://github.com/cubiq/ComfyUI_essentials.git 9d9f4bedfc9f
 was-node-suite-comfyui https://github.com/WASasquatch/was-node-suite-comfyui.git ea935d1044ae
 ComfyUI-Crystools https://github.com/crystian/ComfyUI-Crystools.git 2f18256c5b50
@@ -29,4 +29,4 @@ ComfyUI-RMBG https://github.com/1038lab/ComfyUI-RMBG.git d7402513f23f
 ComfyUI-Utility-MegaPack https://github.com/IxMxAMAR/ComfyUI-Utility-MegaPack.git e8264f5abb20
 Nvidia_RTX_Nodes_ComfyUI https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git 892515e3eb9a
 Civicomfy https://github.com/MoonGoblinDev/Civicomfy.git 555e984bbcb0
-ComfyUI-RunpodDirect https://github.com/MadiatorLabs/ComfyUI-RunpodDirect.git 8be7b2206b75
+ComfyUI-RunpodDirect https://github.com/MadiatorLabs/ComfyUI-RunpodDirect.git 809065c9d2f3
