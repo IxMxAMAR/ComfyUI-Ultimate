@@ -238,8 +238,6 @@ The hard part of a 29-pack ComfyUI image is dependency conflicts. The strategy:
 2. **Deterministic install order** — torch (from the cu128 index) first, then attention backends, then a pre-baked ABI set, then ComfyUI core, then the 29 nodes, then a final opencv/onnxruntime normalization to a single variant.
 3. **CI quality gates** — `smoke_test.py` runs *inside* the build (asserts single cv2 variant, numpy 2.2, torch cu128, HF coherence), and a **node-import gate** boots ComfyUI headless and **fails the build unless all 29 packs import**. The image is pushed only if both gates pass.
 
-Full design rationale: [`docs/superpowers/specs/`](docs/superpowers/specs/).
-
 ---
 
 ## Build it yourself
