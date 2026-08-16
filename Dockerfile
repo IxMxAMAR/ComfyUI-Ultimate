@@ -96,8 +96,8 @@ RUN uv pip install --no-cache \
       open-clip-torch clip-interrogator gguf ultralytics spandrel \
       onnx jupyterlab
 
-# ---- 6. ComfyUI core (v0.28.0) ----
-RUN git clone --depth 1 --branch v0.28.0 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
+# ---- 6. ComfyUI core (v0.33.1) ----
+RUN git clone --depth 1 --branch v0.33.1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
 WORKDIR /ComfyUI
 RUN uv pip install --no-cache -r requirements.txt
 

@@ -1,14 +1,14 @@
-# node_pins.txt — 29 custom-node packs pinned to exact commits (refreshed 2026-07-28, ComfyUI v0.28.0).
+# node_pins.txt — 29 custom-node packs pinned to exact commits (refreshed 2026-08-16, ComfyUI v0.33.1).
 # Format:  <dirname> <git_url> <commit_sha>
 # install_nodes.sh clones each into /ComfyUI/custom_nodes/<dirname> @ <commit_sha>.
-ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git 9463115e78c6
+ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git 4f56cf3dfa7d
 rgthree-comfy https://github.com/rgthree/rgthree-comfy.git 6b76ee6f2c5a
 ComfyUI-Custom-Scripts https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git 609f3afaa74b
-ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git 827fe6ee0ed7
+ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git 3f20054214fe
 ComfyUI_essentials https://github.com/cubiq/ComfyUI_essentials.git 9d9f4bedfc9f
 was-node-suite-comfyui https://github.com/WASasquatch/was-node-suite-comfyui.git ea935d1044ae
 ComfyUI-Crystools https://github.com/crystian/ComfyUI-Crystools.git 2f18256c5b50
-ComfyUI-Easy-Use https://github.com/yolain/ComfyUI-Easy-Use.git 595e0738a9e3
+ComfyUI-Easy-Use https://github.com/yolain/ComfyUI-Easy-Use.git 4de1ab3b66e4
 cg-use-everywhere https://github.com/chrisgoringe/cg-use-everywhere.git 50ae9f8c5d8b
 ComfyUI-Impact-Pack https://github.com/ltdrdata/ComfyUI-Impact-Pack.git 429d0159ad42
 ComfyUI-Impact-Subpack https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git 50c7b71a6a22
@@ -25,7 +25,7 @@ ComfyUI-WanVideoWrapper https://github.com/kijai/ComfyUI-WanVideoWrapper.git 088
 ComfyUI-GGUF https://github.com/city96/ComfyUI-GGUF.git 6ea2651e7df6
 ComfyUI-Florence2 https://github.com/kijai/ComfyUI-Florence2.git 9ece3de91421
 ComfyUI-segment-anything-2 https://github.com/kijai/ComfyUI-segment-anything-2.git 0c35fff5f382
-ComfyUI-RMBG https://github.com/1038lab/ComfyUI-RMBG.git 615c1146d649
+ComfyUI-RMBG https://github.com/1038lab/ComfyUI-RMBG.git 9edb2bec3900
 ComfyUI-Utility-MegaPack https://github.com/IxMxAMAR/ComfyUI-Utility-MegaPack.git 9feea5a1e9ec
 Nvidia_RTX_Nodes_ComfyUI https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git 892515e3eb9a
 Civicomfy https://github.com/MoonGoblinDev/Civicomfy.git 555e984bbcb0
