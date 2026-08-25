@@ -40,6 +40,16 @@ jobs:
           docker info | grep -i "docker root dir" || true
           df -h / /mnt || true
 
+      - name: Add swap (prevents nvcc OOM during the SageAttention CUDA compile)
+        run: |
+          sudo swapoff -a || true
+          sudo rm -f /mnt/swapfile || true
+          sudo fallocate -l 20G /mnt/swapfile || sudo dd if=/dev/zero of=/mnt/swapfile bs=1M count=20480
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub

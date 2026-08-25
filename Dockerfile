@@ -69,9 +69,12 @@ RUN pip install --no-cache-dir \
 # that. Building here emits every kernel for Ampere (8.0/8.6), Ada / RTX 4090 (8.9)
 # and Blackwell / RTX 5090 (12.0), so sage works on all target GPUs. nvcc comes from
 # the devel base. Best-effort: on failure the image ships with the SDPA fallback.
+# Arch list narrowed to the target GPUs (Ada/RTX 4090 = 8.9, Blackwell/RTX 5090 =
+# 12.0) to keep the compile within the CI runner's memory/time. Runner swap (added
+# in build.yml) prevents nvcc OOM. On other GPUs sage isn't built -> SDPA fallback.
 RUN git clone --depth 1 https://github.com/thu-ml/SageAttention.git /tmp/sage \
  && cd /tmp/sage \
- && TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;12.0" EXT_PARALLEL=2 NVCC_APPEND_FLAGS="--threads 4" MAX_JOBS=4 \
+ && TORCH_CUDA_ARCH_LIST="8.9;12.0" EXT_PARALLEL=2 NVCC_APPEND_FLAGS="--threads 4" MAX_JOBS=4 \
     pip install --no-build-isolation . \
  && cd / && rm -rf /tmp/sage \
  && echo "SageAttention: source build OK" \
