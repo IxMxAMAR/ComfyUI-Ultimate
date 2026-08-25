@@ -62,30 +62,20 @@ RUN pip install --no-cache-dir \
    || pip install flash-attn==2.8.3.post1 --no-build-isolation \
    || echo "WARN: flash-attn install failed (optional backend)"
 
-# SageAttention 2.2: trusted prebuilt-wheel chain + best-effort. Try Kijai's wheel
-# first (the ComfyUI/WanVideoWrapper 5090 community runs it — sm80+sm89 kernels,
-# Blackwell-fp8-compatible via the sm89 path), then thekie, each validated by
-# sage_check.py (tells an ABI mismatch apart from "no GPU at build"). Only if all
-# prebuilts are ABI-incompatible do we compile from source vs torch 2.8.0.
-# Never fails the build — worst case ships with SDPA fallback.
-RUN bash -c '\
-  try_wheel() { pip uninstall -y sageattention >/dev/null 2>&1 || true; \
-                pip install --no-cache-dir --no-deps --force-reinstall "$1" \
-                && python /opt/scripts/sage_check.py; }; \
-  if try_wheel "https://huggingface.co/Kijai/PrecompiledWheels/resolve/main/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl"; then \
-    echo "SageAttention: Kijai prebuilt wheel OK"; \
-  elif try_wheel "https://github.com/thekie/sageattention-wheel/releases/download/2.2.0.post1/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl"; then \
-    echo "SageAttention: thekie prebuilt wheel OK"; \
-  else \
-    echo "SageAttention: no usable prebuilt wheel -> compiling from source"; \
-    pip uninstall -y sageattention || true; \
-    ( git clone --depth 1 https://github.com/thu-ml/SageAttention.git /tmp/sage \
-      && cd /tmp/sage \
-      && TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;12.0" EXT_PARALLEL=2 NVCC_APPEND_FLAGS="--threads 4" MAX_JOBS=4 \
-         pip install --no-build-isolation . ) \
-      || echo "WARN: SageAttention source build failed; shipping without it (SDPA fallback)"; \
-    rm -rf /tmp/sage; \
-  fi'
+# SageAttention 2.2: COMPILE FROM SOURCE with the full arch list. Prebuilt community
+# wheels (Kijai/thekie) import cleanly but their fused/fp8 kernels are NOT built for
+# every arch -> "CUDA error: no kernel image is available" at RUNTIME on some cards
+# (notably the fp8 path on RTX 4090 / sm_89). A CPU-only CI import gate can't catch
+# that. Building here emits every kernel for Ampere (8.0/8.6), Ada / RTX 4090 (8.9)
+# and Blackwell / RTX 5090 (12.0), so sage works on all target GPUs. nvcc comes from
+# the devel base. Best-effort: on failure the image ships with the SDPA fallback.
+RUN git clone --depth 1 https://github.com/thu-ml/SageAttention.git /tmp/sage \
+ && cd /tmp/sage \
+ && TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;12.0" EXT_PARALLEL=2 NVCC_APPEND_FLAGS="--threads 4" MAX_JOBS=4 \
+    pip install --no-build-isolation . \
+ && cd / && rm -rf /tmp/sage \
+ && echo "SageAttention: source build OK" \
+ || { echo "WARN: SageAttention source build failed; SDPA fallback"; rm -rf /tmp/sage; }
 
 # ---- 5. Pre-bake the ABI-sensitive set (lock it before node requirements run) ----
 RUN uv pip install --no-cache \
