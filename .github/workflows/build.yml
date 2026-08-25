@@ -58,10 +58,13 @@ jobs:
           tags: ${{ env.IMAGE }}:ci-${{ github.sha }}
           provenance: false
 
-      - name: Node-import gate (all 29 packs must import)
-        # --entrypoint bash overrides the image ENTRYPOINT (start.sh) so we actually
-        # run the gate script (not launch full ComfyUI without --cpu).
-        run: docker run --rm --entrypoint bash ${{ env.IMAGE }}:ci-${{ github.sha }} /opt/scripts/ci_node_import_gate.sh
+      - name: Node-import gate (all 29 packs must import, OFFLINE)
+        # --entrypoint bash overrides the image ENTRYPOINT (start.sh) so we run the
+        # gate script (not launch full ComfyUI without --cpu).
+        # --network none: fail the build if ANY node needs the network to import
+        # (e.g. import-time downloads like UltimateSDUpscale's USDU script) — those
+        # must be vendored at build time so pods boot reliably offline.
+        run: docker run --rm --network none --entrypoint bash ${{ env.IMAGE }}:ci-${{ github.sha }} /opt/scripts/ci_node_import_gate.sh
 
       - name: Tag + push (only on push / dispatch, after gates pass)
         if: github.event_name != 'pull_request'

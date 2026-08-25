@@ -50,6 +50,19 @@ while read -r name url sha; do
       pip install --no-cache-dir nvidia-vfx --extra-index-url https://pypi.nvidia.com/ \
         || echo "WARN: nvidia-vfx install failed (RTX VSR node unavailable)"
       ;;
+    ComfyUI_UltimateSDUpscale)
+      # __init__.py downloads the Coyote-A USDU script at IMPORT time if
+      # repositories/ultimate_sd_upscale is empty -> fails on any pod network/DNS
+      # blip at boot. Vendor it now (network is available in CI) so runtime never
+      # needs the network to import.
+      usdu="$dest/repositories/ultimate_sd_upscale"
+      rm -rf "$usdu"
+      ( git clone --depth 1 https://github.com/Coyote-A/ultimate-upscale-for-automatic1111.git "$usdu" \
+        && rm -rf "$usdu/.git" \
+        && echo "USDU script vendored into image" ) \
+        || { echo "!! USDU vendor failed: $name"; fail=1; }
+      install_reqs "$dest"
+      ;;
     *)
       install_reqs "$dest"
       ;;
