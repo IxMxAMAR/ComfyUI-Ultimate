@@ -44,8 +44,32 @@ cmd_freeze() {
     echo "No user-installed nodes found — nothing to record."
   else
     echo "Recorded $(echo "$lines" | wc -l | tr -d ' ') node(s) in $MANIFEST:"
-    echo "$lines" | awk '{print "  " $1 "  " $3}'
+    echo "$lines" | awk '{printf "  %-34s %s\n", $1, ($3=="HEAD" ? "(tracking HEAD)" : $3)}'
+    if echo "$lines" | awk '$3=="HEAD"' | grep -q .; then
+      echo
+      echo "Note: nodes shown as 'tracking HEAD' were installed from the Comfy"
+      echo "Registry, which ships an archive with no commit id — so they will be"
+      echo "restored from the latest upstream code rather than a fixed version."
+      echo "To pin one exactly, reinstall it with: comfy-nodes add <git-url> <sha>"
+    fi
   fi
+  cmd_warn_unrecordable
+}
+
+# A node dir with no git remote and no pyproject Repository url cannot be
+# restored at all. Silently skipping it would lose it on the next rebuild, so
+# say so loudly.
+cmd_warn_unrecordable() {
+  local bad
+  bad="$(cn_unrecordable_dirs)"
+  [ -n "$bad" ] || return 0
+  echo
+  echo "WARNING — these are installed but CANNOT be recorded (no git remote and"
+  echo "no Repository url in pyproject.toml). They will be lost on a rebuild:"
+  echo "$bad" | sed 's/^/  /'
+  echo
+  echo "Reinstall each from its source to make it persistent:"
+  echo "  comfy-nodes add <git-url>"
 }
 
 cmd_add() {
@@ -87,6 +111,7 @@ cmd_status() {
     echo
     echo "Run: comfy-nodes freeze"
   fi
+  cmd_warn_unrecordable
 }
 
 case "${1:-}" in

@@ -45,4 +45,29 @@ while read -r name _rest; do
 done < "$WORKSPACE/comfy_nodes.txt"
 echo "ok: freeze excludes the baked packs"
 
+# 6. A Registry-installed pack has no .git. Freezing only git checkouts would
+#    drop it silently and lose it on the next rebuild — the worst failure mode.
+reg=/ComfyUI/custom_nodes/zz-registry-style
+mkdir -p "$reg"
+cat > "$reg/pyproject.toml" <<'EOF'
+[project]
+name = "zz-registry-style"
+version = "1.0.0"
+
+[project.urls]
+Repository = "https://github.com/example/zz-registry-style"
+EOF
+comfy-nodes freeze >/dev/null 2>&1
+grep -q "zz-registry-style https://github.com/example/zz-registry-style HEAD" "$WORKSPACE/comfy_nodes.txt" \
+  || { echo "FAIL: a Registry-style pack (no .git) was not recorded"; cat "$WORKSPACE/comfy_nodes.txt"; rm -rf "$reg"; exit 1; }
+echo "ok: Registry-installed pack recorded from its pyproject"
+
+# 7. A pack with neither git nor a Repository url must be REPORTED, not dropped.
+mystery=/ComfyUI/custom_nodes/zz-mystery
+mkdir -p "$mystery"; echo "x = 1" > "$mystery/__init__.py"
+comfy-nodes status 2>&1 | grep -q "zz-mystery" \
+  || { echo "FAIL: an unrecordable pack was not reported by 'status'"; rm -rf "$reg" "$mystery"; exit 1; }
+echo "ok: unrecordable pack is reported rather than silently lost"
+rm -rf "$reg" "$mystery"
+
 echo "nodes gate PASS"

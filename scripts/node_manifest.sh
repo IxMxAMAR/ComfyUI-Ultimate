@@ -65,21 +65,62 @@ cn_is_baked() {
   grep -qxF "$name" "$CN_BAKED_LIST"
 }
 
-# Scan the installed node dirs and emit manifest lines for everything that is a
-# git checkout and is NOT baked into the image — i.e. exactly what the user
-# added themselves, pinned to the commit they are actually running.
+# ComfyUI-Manager installs from the Comfy Registry as a versioned archive, not a
+# git clone, so those packs have NO .git directory. Freezing only git checkouts
+# would silently drop them and lose them on the next rebuild. The Registry does
+# mandate a Repository url in pyproject.toml, so use that as the fallback.
+cn_repo_url_from_pyproject() {
+  local f="$1/pyproject.toml"
+  [ -f "$f" ] || return 1
+  sed -n 's/^[[:space:]]*Repository[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$f" | head -1
+}
+
+# True when $1 is a node directory this user added (not baked into the image).
+_cn_is_user_dir() {
+  local name="$1"
+  [ "$name" != "*" ] || return 1
+  ! cn_is_baked "$name"
+}
+
+# Scan the installed node dirs and emit manifest lines for everything the user
+# added themselves. A real git checkout is pinned to the exact commit it is
+# running; a Registry install can only be tracked at HEAD, since the archive
+# carries no commit id.
 cn_freeze_lines() {
   local d name url sha
   [ -d "$COMFY_NODES_DIR" ] || return 0
   for d in "$COMFY_NODES_DIR"/*/; do
     [ -d "$d" ] || continue
     name="$(basename "$d")"
-    cn_is_baked "$name" && continue
-    [ -d "$d/.git" ] || continue
-    url="$(git -C "$d" config --get remote.origin.url 2>/dev/null)"
+    _cn_is_user_dir "$name" || continue
+
+    if [ -d "$d/.git" ]; then
+      url="$(git -C "$d" config --get remote.origin.url 2>/dev/null)"
+      sha="$(git -C "$d" rev-parse HEAD 2>/dev/null)"
+      if [ -n "$url" ] && [ -n "$sha" ]; then
+        echo "$name $url $sha"
+        continue
+      fi
+    fi
+
+    url="$(cn_repo_url_from_pyproject "$d" 2>/dev/null)"
     [ -n "$url" ] || continue
-    sha="$(git -C "$d" rev-parse HEAD 2>/dev/null)"
-    [ -n "$sha" ] || continue
-    echo "$name $url $sha"
+    echo "$name $url HEAD"
+  done
+}
+
+# Node dirs the user added that cannot be recorded at all — no git remote and no
+# Repository url. These WILL be lost on a rebuild, so they must be reported
+# rather than silently skipped.
+cn_unrecordable_dirs() {
+  local d name recorded
+  [ -d "$COMFY_NODES_DIR" ] || return 0
+  recorded="$(cn_freeze_lines | awk '{print $1}')"
+  for d in "$COMFY_NODES_DIR"/*/; do
+    [ -d "$d" ] || continue
+    name="$(basename "$d")"
+    _cn_is_user_dir "$name" || continue
+    echo "$recorded" | grep -qxF "$name" && continue
+    echo "$name"
   done
 }

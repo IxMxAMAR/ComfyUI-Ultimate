@@ -219,9 +219,23 @@ or that change often. Once you have settled on one permanently, add it to
 and its dependencies are already installed. If boot is getting slow, that is the
 signal to promote what has accumulated in the pin list.
 
-Two guarantees, both enforced in CI: the manifest can never modify or overwrite
-one of the 29 bundled packs, and a node whose repo has moved, been deleted or
-gone private is logged and skipped — it can never stop the pod from booting.
+**Packs installed from the Comfy Registry.** ComfyUI-Manager increasingly
+installs node packs as versioned archives rather than git clones, so those
+directories contain no `.git`. `freeze` handles them: it falls back to the
+`Repository` url the Registry requires in `pyproject.toml` and records them as
+tracking `HEAD` (an archive carries no commit id, so there is nothing exact to
+pin to). If you want one pinned to a specific commit, reinstall it with
+`comfy-nodes add <git-url> <sha>`.
+
+If a pack has neither a git remote nor a Repository url, it genuinely cannot be
+restored — `freeze` and `status` both say so explicitly rather than skipping it
+quietly, because a silent omission would only surface as a missing node after
+your next rebuild.
+
+Three guarantees, all enforced in CI: the manifest can never modify or overwrite
+one of the 29 bundled packs; a node whose repo has moved, been deleted or gone
+private is logged and skipped, so it can never stop the pod from booting; and a
+pack that cannot be recorded is always reported, never dropped in silence.
 
 ## Persistent storage
 

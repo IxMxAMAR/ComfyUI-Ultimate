@@ -63,4 +63,43 @@ assert_eq "$(echo "$out" | wc -l | tr -d ' ')" "1" "only the non-baked git check
 assert_eq "$out" "MyNode https://github.com/foo/MyNode.git $sha_user" "captured with url and exact sha"
 cleanup_sandbox
 
+echo "-- registry-installed packs (no .git) are still recordable"
+new_node_sandbox
+# ComfyUI-Manager installs from the Comfy Registry as an archive, so there is no
+# .git directory — but the Registry mandates a Repository url in pyproject.toml.
+mkdir -p "$COMFY_NODES_DIR/RegistryNode"
+cat > "$COMFY_NODES_DIR/RegistryNode/pyproject.toml" <<'EOF'
+[project]
+name = "RegistryNode"
+version = "0.4.30"
+
+[project.urls]
+Repository = "https://github.com/someone/RegistryNode"
+EOF
+assert_eq "$(cn_repo_url_from_pyproject "$COMFY_NODES_DIR/RegistryNode")" \
+  "https://github.com/someone/RegistryNode" "repository url is read from pyproject"
+out="$(cn_freeze_lines)"
+assert_eq "$out" "RegistryNode https://github.com/someone/RegistryNode HEAD" \
+  "a non-git pack is recorded from its pyproject, tracking HEAD"
+cleanup_sandbox
+
+echo "-- a pack with no git and no pyproject url is reported, not silently dropped"
+new_node_sandbox
+mkdir -p "$COMFY_NODES_DIR/MysteryNode"
+echo "print('hi')" > "$COMFY_NODES_DIR/MysteryNode/__init__.py"
+assert_eq "$(cn_freeze_lines)" "" "it is not recorded, because there is nothing to record"
+assert_eq "$(cn_unrecordable_dirs)" "MysteryNode" "but it IS reported as unrecordable"
+cleanup_sandbox
+
+echo "-- git wins over pyproject when both exist"
+new_node_sandbox
+sha_g="$(fake_node_repo BothNode https://github.com/foo/BothNode.git)"
+cat > "$COMFY_NODES_DIR/BothNode/pyproject.toml" <<'EOF'
+[project.urls]
+Repository = "https://github.com/wrong/Other"
+EOF
+assert_eq "$(cn_freeze_lines)" "BothNode https://github.com/foo/BothNode.git $sha_g" \
+  "the real checkout's remote and sha win"
+cleanup_sandbox
+
 echo "SUITE_RESULT $TESTS_RUN $TESTS_FAILED $TESTS_SKIPPED"
