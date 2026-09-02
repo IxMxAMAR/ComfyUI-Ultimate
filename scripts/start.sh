@@ -45,6 +45,13 @@ else
   echo "[start] filebrowser not installed, skipping :8080"
 fi
 
+# --- Restore user-pinned custom nodes onto LOCAL disk (see comfy_nodes.txt) ---
+# Nodes installed at runtime via ComfyUI-Manager live on the pod's local disk and
+# die with the pod. They are restored here from a manifest on the volume rather
+# than by symlinking custom_nodes onto it, so node code still imports at local
+# NVMe speed. Never fatal: a dead node repo must not stop the pod booting.
+bash /opt/scripts/restore_nodes.sh || echo "[start] WARN node restore reported an error; continuing"
+
 # --- ComfyUI (foreground). Attention: prefer the KJNodes 'Patch Sage Attention'
 #     node over the global --use-sage-attention flag. Override via COMFY_ARGS. ---
 cd /ComfyUI

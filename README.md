@@ -18,6 +18,7 @@ Built automatically by GitHub Actions and published to Docker Hub:
 - [Services & ports](#services--ports)
 - [Environment variables](#environment-variables)
 - [Getting models](#getting-models)
+- [Keeping custom nodes across rebuilds](#keeping-custom-nodes-across-rebuilds)
 - [Persistent storage](#persistent-storage)
 - [SSH access](#ssh-access)
 - [Attention backends (SageAttention / FlashAttention)](#attention-backends)
@@ -168,6 +169,59 @@ All web services bind `0.0.0.0` and are reached through RunPod's proxy (`https:/
 Everything downloads onto the `/workspace` volume, so it survives pod restarts.
 
 ---
+
+## Keeping custom nodes across rebuilds
+
+ComfyUI, its Python environment and the 29 bundled node packs live **inside the
+image, on the pod's local NVMe** — not on the network volume. That is why this
+image starts far faster than templates which install ComfyUI onto `/workspace`
+and then import tens of thousands of small files over network storage on every
+boot.
+
+The trade-off: anything you install through ComfyUI-Manager also lands on local
+disk, and local disk is wiped when the pod is destroyed.
+
+The fix is a pin list, not a symlink — so your nodes still load from fast local
+disk, and the list works on any pod, any volume, any account.
+
+**The one command you need.** Install nodes through the Manager UI exactly as
+normal, then:
+
+```bash
+comfy-nodes freeze
+```
+
+That records every node you added — at the exact commit you are running — into
+`/workspace/comfy_nodes.txt`. On every future boot they are cloned back and
+their requirements reinstalled, before ComfyUI starts. Run it from a JupyterLab
+terminal (port 8888 → File → New → Terminal) or over SSH.
+
+| Command | Does |
+|---------|------|
+| `comfy-nodes status` | Shows which installed nodes are **not** yet recorded — i.e. what you would lose on a rebuild |
+| `comfy-nodes freeze` | Records everything you have installed |
+| `comfy-nodes add <git-url> [sha]` | Installs a node and records it, in one step |
+| `comfy-nodes list` | Shows what is pinned |
+| `comfy-nodes restore` | Re-runs the restore now |
+
+You can also edit `/workspace/comfy_nodes.txt` by hand — it uses the same
+`<dirname> <git_url> <commit_sha>` format as this repo's own `node_pins.txt`.
+The sha is optional (omit it to track the default branch), and a bare git URL
+works too.
+
+**What it costs.** Restoring a handful of nodes adds roughly 10–25 seconds to a
+cold boot, mostly pip; the wheel cache lives on the volume, so later boots are
+faster. Progress is logged to `/workspace/comfy_nodes.log`.
+
+**When to bake a node in instead.** The pin list is for nodes you are trying out
+or that change often. Once you have settled on one permanently, add it to
+`node_pins.txt` and rebuild — a baked node costs **nothing** at boot, because it
+and its dependencies are already installed. If boot is getting slow, that is the
+signal to promote what has accumulated in the pin list.
+
+Two guarantees, both enforced in CI: the manifest can never modify or overwrite
+one of the 29 bundled packs, and a node whose repo has moved, been deleted or
+gone private is logged and skipped — it can never stop the pod from booting.
 
 ## Persistent storage
 

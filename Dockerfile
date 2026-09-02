@@ -122,7 +122,13 @@ COPY expected_packs.txt /opt/expected_packs.txt
 RUN pip check || echo "NOTE: pip check reported advisory conflicts (expected: ultralytics/mediapipe want opencv-python; cv2 is provided by opencv-contrib-python-headless)"
 RUN python /opt/scripts/smoke_test.py
 
-# ---- 12. Entrypoint ----
+# ---- 12. comfy-nodes CLI (keeps runtime-installed nodes across pod rebuilds).
+# Not covered by the chmod in step 3 — that globs *.sh and this has no extension. ----
+RUN chmod +x /opt/scripts/comfy-nodes \
+ && ln -sf /opt/scripts/comfy-nodes /usr/local/bin/comfy-nodes \
+ && comfy-nodes --help > /dev/null && echo "comfy-nodes OK"
+
+# ---- 13. Entrypoint ----
 RUN cp /opt/scripts/start.sh /opt/start.sh && chmod +x /opt/start.sh
 EXPOSE 8188 8888 22 8080
 WORKDIR /ComfyUI

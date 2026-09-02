@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Run the bash unit tests
+        run: bash tests/run_tests.sh
+
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
@@ -67,6 +70,9 @@ jobs:
           load: true
           tags: ${{ env.IMAGE }}:ci-${{ github.sha }}
           provenance: false
+
+      - name: Custom-node manifest gate (baked packs protected, bad repo survivable)
+        run: docker run --rm --entrypoint bash ${{ env.IMAGE }}:ci-${{ github.sha }} /opt/scripts/ci_nodes_gate.sh
 
       - name: Node-import gate (all 29 packs must import, OFFLINE)
         # --entrypoint bash overrides the image ENTRYPOINT (start.sh) so we run the
