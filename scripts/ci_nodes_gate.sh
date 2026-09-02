@@ -9,6 +9,12 @@ rm -rf "$WORKSPACE"; mkdir -p "$WORKSPACE"
 
 fail() { echo "FAIL: $*"; exit 1; }
 
+# Never pipe into `grep -q` here. It exits on the first match and closes the
+# pipe; the producer then dies of SIGPIPE (141) and, under `set -o pipefail`,
+# the pipeline reports failure even though the match succeeded. Capture the
+# output first, then match against it.
+contains() { case "$2" in *"$1"*) return 0 ;; *) return 1 ;; esac; }
+
 command -v comfy-nodes >/dev/null || fail "comfy-nodes is not on PATH"
 
 # 1. First boot with no manifest must create one and exit clean.
@@ -17,14 +23,16 @@ bash /opt/scripts/restore_nodes.sh || fail "restore exited non-zero on a fresh v
 echo "ok: fresh volume creates a manifest"
 
 # 2. Nothing pinned yet, so nothing is claimed as installed.
-comfy-nodes list | grep -q "Nothing pinned" || fail "empty manifest should report nothing pinned"
+out="$(comfy-nodes list 2>&1)"
+contains "Nothing pinned" "$out" || fail "empty manifest should report nothing pinned (got: $out)"
 echo "ok: empty manifest reports cleanly"
 
 # 3. A baked pack listed in the manifest must be refused, not reinstalled over.
 baked="$(head -1 /opt/expected_packs.txt)"
 before="$(git -C "/ComfyUI/custom_nodes/$baked" rev-parse HEAD 2>/dev/null || echo none)"
 echo "$baked https://github.com/example/$baked.git deadbeef" >> "$WORKSPACE/comfy_nodes.txt"
-bash /opt/scripts/restore_nodes.sh | grep -q "already baked" || fail "baked pack was not skipped"
+out="$(bash /opt/scripts/restore_nodes.sh 2>&1)"
+contains "already baked" "$out" || fail "baked pack was not skipped (got: $out)"
 after="$(git -C "/ComfyUI/custom_nodes/$baked" rev-parse HEAD 2>/dev/null || echo none)"
 [ "$before" = "$after" ] || fail "a baked pack was modified by the restore ($before -> $after)"
 echo "ok: baked pack '$baked' protected from the manifest"
@@ -65,8 +73,11 @@ echo "ok: Registry-installed pack recorded from its pyproject"
 # 7. A pack with neither git nor a Repository url must be REPORTED, not dropped.
 mystery=/ComfyUI/custom_nodes/zz-mystery
 mkdir -p "$mystery"; echo "x = 1" > "$mystery/__init__.py"
-comfy-nodes status 2>&1 | grep -q "zz-mystery" \
-  || { echo "FAIL: an unrecordable pack was not reported by 'status'"; rm -rf "$reg" "$mystery"; exit 1; }
+out="$(comfy-nodes status 2>&1)"
+if ! contains "zz-mystery" "$out"; then
+  echo "FAIL: an unrecordable pack was not reported by 'status'"; echo "$out"
+  rm -rf "$reg" "$mystery"; exit 1
+fi
 echo "ok: unrecordable pack is reported rather than silently lost"
 rm -rf "$reg" "$mystery"
 
