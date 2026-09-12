@@ -11,8 +11,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:/usr/local/bin:/usr/bin:/bin \
-    PIP_CONSTRAINT=/opt/constraints.txt \
-    UV_CONSTRAINT=/opt/constraints.txt \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     MPLBACKEND=Agg \
@@ -27,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends software-proper
       python3.12 python3.12-venv python3.12-dev \
       git git-lfs aria2 wget \
       ffmpeg libsndfile1 libglib2.0-0 libgomp1 libgl1 \
-      build-essential ninja-build \
+      build-essential ninja-build cmake pkg-config libsm6 libxext6 libxrender-dev \
       openssh-server \
  && apt-get install -y --only-upgrade libstdc++6 \
  && { strings /usr/lib/x86_64-linux-gnu/libstdc++.so.6 | grep -q GLIBCXX_3.4.32 \
@@ -40,10 +38,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends software-proper
  && rm -rf /var/lib/apt/lists/*
 
 # ---- 2. Python 3.12 venv + tooling ----
-# constraints.txt must exist before ANY pip call (PIP_CONSTRAINT is set globally).
+# constraints.txt applied at build time to ensure a reproducible base image.
 COPY constraints.txt /opt/constraints.txt
 RUN python3.12 -m venv /opt/venv \
- && python -m pip install --upgrade pip setuptools wheel uv
+ && python -m pip install --upgrade pip setuptools wheel uv scikit-build-core
 
 # ---- 3. torch cu128 FIRST (auto-pulls triton 3.4.0). Assert before building on it. ----
 RUN pip install torch==2.8.0+cu128 torchvision==0.23.0+cu128 torchaudio==2.8.0+cu128 \
@@ -81,18 +79,19 @@ RUN git clone --depth 1 https://github.com/thu-ml/SageAttention.git /tmp/sage \
  || { echo "WARN: SageAttention source build failed; SDPA fallback"; rm -rf /tmp/sage; }
 
 # ---- 5. Pre-bake the ABI-sensitive set (lock it before node requirements run) ----
-RUN uv pip install --no-cache \
+RUN uv pip install --no-cache --constraint /opt/constraints.txt \
       numpy numba llvmlite \
       transformers tokenizers huggingface-hub diffusers accelerate peft safetensors \
       protobuf mediapipe pillow scipy scikit-image scikit-learn \
       kornia timm sentencepiece einops matplotlib simpleeval \
       open-clip-torch clip-interrogator gguf ultralytics spandrel \
-      onnx jupyterlab
+      onnx jupyterlab qwen-vl-utils \
+ && cp /opt/scripts/sitecustomize.py /opt/venv/lib/python3.12/site-packages/sitecustomize.py
 
 # ---- 6. ComfyUI core (v0.33.1) ----
 RUN git clone --depth 1 --branch v0.33.1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
 WORKDIR /ComfyUI
-RUN uv pip install --no-cache -r requirements.txt
+RUN uv pip install --no-cache --constraint /opt/constraints.txt -r requirements.txt
 
 # ---- 7. Custom nodes: clone 29 @ pinned commits + install per policy ----
 # (scripts already copied + chmod'd before step 4)
@@ -103,12 +102,11 @@ RUN bash /opt/scripts/install_nodes.sh /opt/node_pins.txt
 RUN pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python opencv-contrib-python-headless onnxruntime onnxruntime-gpu || true \
  && uv pip install --no-cache opencv-contrib-python-headless==4.11.0.86 onnxruntime-gpu==1.22.0
 
-# ---- 9. Wire ComfyUI-Manager pip_overrides (onnxruntime -> onnxruntime-gpu).
-# torch_rollback is NOT regex-patched (that corrupted manager_util.py). It uses
-# standard pip, so the persistent runtime PIP_CONSTRAINT (torch==2.8.0+cu128)
-# already neutralizes it — a rollback attempt conflicts with the pin and no-ops. ----
+# ---- 9. Wire ComfyUI-Manager protections (pip overrides, blacklist, config) ----
 COPY pip_overrides.json /opt/pip_overrides.json
-RUN cp /opt/pip_overrides.json /ComfyUI/custom_nodes/ComfyUI-Manager/pip_overrides.json 2>/dev/null || true
+COPY pip_blacklist.list /opt/pip_blacklist.list
+RUN python /opt/scripts/configure_manager.py /ComfyUI/user/__manager /ComfyUI/user/default/ComfyUI-Manager \
+ && cp /opt/pip_overrides.json /ComfyUI/custom_nodes/ComfyUI-Manager/pip_overrides.json 2>/dev/null || true
 
 # ---- 10. filebrowser (pinned binary; the get.sh installer URL 404s) ----
 RUN curl -fsSL https://github.com/filebrowser/filebrowser/releases/download/v2.31.2/linux-amd64-filebrowser.tar.gz -o /tmp/fb.tgz \

@@ -37,7 +37,7 @@ Most ComfyUI cloud images either ship nothing (you install everything by hand) o
 
 - **Software baked, models not.** Every painful-to-compile dependency (Triton, SageAttention, FlashAttention, the CUDA stack) and 29 popular custom-node packs are pre-installed and version-locked. Models are pulled at runtime into a persistent volume.
 - **Blackwell-ready.** Built on CUDA 12.8 / PyTorch cu128, so it runs on the **RTX 5090 (sm_120)** as well as Ampere → Hopper.
-- **Dependency-hardened.** A single pinned `constraints.txt` is enforced on every install so no custom node can silently swap your CUDA-enabled torch for a CPU build. The CI **fails the build unless all 29 nodes import cleanly.**
+- **Dependency-hardened & runtime-resilient.** A pinned `constraints.txt` enforces consistent build-time dependencies without locking down runtime installs. Core CUDA PyTorch packages are shielded by ComfyUI-Manager downgrade blacklists, requirement sanitization, and a NumPy 1.x backwards-compatibility shim so both bleeding-edge and legacy nodes install cleanly. The CI **fails the build unless all 29 nodes import cleanly.**
 
 ---
 
@@ -302,7 +302,7 @@ Attach a Network Volume at `/workspace`. Without it, downloads live in ephemeral
 
 The hard part of a 29-pack ComfyUI image is dependency conflicts. The strategy:
 
-1. **One pinned `constraints.txt`** ([file](constraints.txt)) hard-pins every ABI-sensitive package (torch, numpy, opencv, onnxruntime, the HuggingFace stack…) and is applied to **every** pip/uv install via `PIP_CONSTRAINT` — so no node can move torch off the cu128 build.
+1. **Build-time `constraints.txt` + runtime protection** — hard-pins every ABI-sensitive package during base build, while protecting torch cu128 at runtime via ComfyUI-Manager downgrade blacklists and requirements sanitization so user-installed nodes (new or old) never fail from rigid constraint conflicts.
 2. **Deterministic install order** — torch (from the cu128 index) first, then attention backends, then a pre-baked ABI set, then ComfyUI core, then the 29 nodes, then a final opencv/onnxruntime normalization to a single variant.
 3. **CI quality gates** — `smoke_test.py` runs *inside* the build (asserts single cv2 variant, numpy 2.2, torch cu128, HF coherence), and a **node-import gate** boots ComfyUI headless and **fails the build unless all 29 packs import**. The image is pushed only if both gates pass.
 

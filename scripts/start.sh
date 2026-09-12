@@ -45,12 +45,29 @@ else
   echo "[start] filebrowser not installed, skipping :8080"
 fi
 
+# --- Runtime Compatibility & ComfyUI-Manager Protection ---
+# 1. Ensure sitecustomize.py is loaded in venv (NumPy 1.x backwards compatibility shim for older nodes)
+if [ -f /opt/scripts/sitecustomize.py ]; then
+  cp -f /opt/scripts/sitecustomize.py /opt/venv/lib/python3.12/site-packages/sitecustomize.py 2>/dev/null || true
+fi
+
+# 2. Seed ComfyUI-Manager config & overrides (remaps opencv/onnxruntime, prevents torch/numpy downgrade)
+python /opt/scripts/configure_manager.py "$WORKSPACE/user/__manager" "$WORKSPACE/user/default/ComfyUI-Manager" \
+  || echo "[start] WARN manager configuration reported an error; continuing"
+
 # --- Restore user-pinned custom nodes onto LOCAL disk (see comfy_nodes.txt) ---
 # Nodes installed at runtime via ComfyUI-Manager live on the pod's local disk and
 # die with the pod. They are restored here from a manifest on the volume rather
 # than by symlinking custom_nodes onto it, so node code still imports at local
 # NVMe speed. Never fatal: a dead node repo must not stop the pod booting.
 bash /opt/scripts/restore_nodes.sh || echo "[start] WARN node restore reported an error; continuing"
+
+# 3. Quick OpenCV normalization check (in case a restored node brought in GUI opencv-python)
+if [ "$(python -c 'import importlib.metadata as md; print(len([d for d in ("opencv-python", "opencv-python-headless", "opencv-contrib-python") if md.distribution(d)]))' 2>/dev/null || echo 0)" -gt 0 ]; then
+  echo "[start] Normalizing OpenCV variants..."
+  pip uninstall -y opencv-python opencv-python-headless opencv-contrib-python >/dev/null 2>&1 || true
+  pip install --no-deps opencv-contrib-python-headless==4.11.0.86 >/dev/null 2>&1 || true
+fi
 
 # --- ComfyUI (foreground). Attention: prefer the KJNodes 'Patch Sage Attention'
 #     node over the global --use-sage-attention flag. Override via COMFY_ARGS. ---

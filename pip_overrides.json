@@ -1,3 +1,7 @@
 {
-  "onnxruntime": "onnxruntime-gpu"
+  "onnxruntime": "onnxruntime-gpu",
+  "opencv-python": "opencv-contrib-python-headless",
+  "opencv-python-headless": "opencv-contrib-python-headless",
+  "opencv-contrib-python": "opencv-contrib-python-headless",
+  "tb-nightly": "tensorboard"
 }

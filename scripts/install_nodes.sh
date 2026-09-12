@@ -8,7 +8,7 @@ set -uo pipefail
 PINS="${1:-/opt/node_pins.txt}"
 NODES_DIR=/ComfyUI/custom_nodes
 mkdir -p "$NODES_DIR"
-PIP="uv pip install --no-cache"
+PIP="uv pip install --no-cache --constraint /opt/constraints.txt"
 fail=0
 
 install_reqs () {

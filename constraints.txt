@@ -27,14 +27,14 @@ opencv-contrib-python-headless==4.11.0.86
 # --- onnxruntime: the single GPU winner (cuDNN 9 / CUDA 12.x). ---
 onnxruntime-gpu==1.22.0
 
-# --- HuggingFace set: coherent group, move together on any bump. ---
-transformers==4.53.2
-tokenizers==0.21.2
-huggingface-hub==0.34.3
-diffusers==0.34.0
-accelerate==1.8.1
-peft==0.16.0
-safetensors==0.5.3
+# --- HuggingFace set: modern VLM support (Qwen3-VL requires transformers>=4.57.0) ---
+transformers>=4.57.0
+tokenizers>=0.21.2
+huggingface-hub>=0.34.3
+diffusers>=0.34.0
+accelerate>=1.8.1
+peft>=0.16.0
+safetensors>=0.5.3
 
 # --- protobuf under RMBG <6 cap, above mediapipe floor ---
 protobuf==4.25.8

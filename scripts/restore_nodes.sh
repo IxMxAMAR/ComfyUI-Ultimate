@@ -75,12 +75,28 @@ while read -r name url sha; do
   fi
 
   if [ -f "$dest/requirements.txt" ]; then
-    # PIP_CONSTRAINT is set image-wide, so a node requirement still cannot
-    # downgrade torch out from under CUDA.
-    if pip install --no-cache-dir=false -r "$dest/requirements.txt" >>"$LOG" 2>&1; then
-      log "ok   $name installed with requirements"
+    clean_reqs="/tmp/clean_reqs_${name}.txt"
+    if python /opt/scripts/sanitize_requirements.py "$dest/requirements.txt" "$clean_reqs" 2>>"$LOG"; then
+      log ">> sanitized requirements for $name"
     else
-      log "WARN $name installed but its requirements failed — see $LOG"
+      cp "$dest/requirements.txt" "$clean_reqs"
+    fi
+
+    if [ -s "$clean_reqs" ]; then
+      if pip install --no-cache-dir=false -r "$clean_reqs" >>"$LOG" 2>&1; then
+        log "ok   $name installed with requirements"
+      else
+        # Fallback: install line-by-line so one bad package doesn't fail the rest
+        log "WARN $name batch reqs failed; attempting per-package fallback..."
+        while read -r req_line; do
+          case "$req_line" in ''|\#*) continue ;; esac
+          pip install --no-cache-dir=false "$req_line" >>"$LOG" 2>&1 || log "WARN   $name skipped failing requirement: $req_line"
+        done < "$clean_reqs"
+        log "ok   $name installed (per-package fallback completed)"
+      fi
+      rm -f "$clean_reqs"
+    else
+      log "ok   $name installed (all deps satisfied by base environment)"
     fi
   else
     log "ok   $name installed"
