@@ -72,5 +72,6 @@ fi
 # --- ComfyUI (foreground). Attention: prefer the KJNodes 'Patch Sage Attention'
 #     node over the global --use-sage-attention flag. Override via COMFY_ARGS. ---
 cd /ComfyUI
-echo "[start] launching ComfyUI on :8188"
-exec python main.py --listen 0.0.0.0 --port 8188 ${COMFY_ARGS:-}
+COMFY_ARGS="${COMFY_ARGS:---enable-triton-backend}"
+echo "[start] launching ComfyUI on :8188 ($COMFY_ARGS)"
+exec python main.py --listen 0.0.0.0 --port 8188 ${COMFY_ARGS}
