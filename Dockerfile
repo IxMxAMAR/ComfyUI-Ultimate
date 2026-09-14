@@ -88,8 +88,8 @@ RUN uv pip install --no-cache --constraint /opt/constraints.txt \
       onnx jupyterlab qwen-vl-utils \
  && cp /opt/scripts/sitecustomize.py /opt/venv/lib/python3.12/site-packages/sitecustomize.py
 
-# ---- 6. ComfyUI core (v0.33.1) ----
-RUN git clone --depth 1 --branch v0.33.1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
+# ---- 6. ComfyUI core (v0.35.1) ----
+RUN git clone --depth 1 --branch v0.35.1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
 WORKDIR /ComfyUI
 RUN uv pip install --no-cache --constraint /opt/constraints.txt -r requirements.txt
 
