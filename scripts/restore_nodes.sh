@@ -12,6 +12,13 @@ WORKSPACE="${WORKSPACE:-/workspace}"
 MANIFEST="$(cn_manifest_path)"
 LOG="$(cn_log_path)"
 
+# Ensure virtualenv python/pip are always used and PyTorch cu128 wheel index is available
+export PATH="/opt/venv/bin:$PATH"
+export VIRTUAL_ENV="/opt/venv"
+unset PIP_CONSTRAINT
+unset UV_CONSTRAINT
+export PIP_EXTRA_INDEX_URL="${PIP_EXTRA_INDEX_URL:-https://download.pytorch.org/whl/cu128}"
+
 # Wheel cache on the volume, so the second boot is far faster than the first.
 export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$WORKSPACE/pip-cache}"
 mkdir -p "$PIP_CACHE_DIR"
@@ -51,27 +58,33 @@ while read -r name url sha; do
 
   if [ -d "$dest/.git" ]; then
     cur="$(git -C "$dest" rev-parse HEAD 2>/dev/null)"
-    if [ "$sha" != "HEAD" ] && [ "$cur" = "$sha" ]; then
-      log "ok   $name already at $sha"
+    if [ "$sha" != "HEAD" ] && [ "$cur" = "$sha" ] && [ -f "$dest/.requirements_installed" ]; then
+      log "ok   $name already at $sha (requirements satisfied)"
       ok=$((ok + 1))
       continue
     fi
-    rm -rf "$dest"
+    if [ "$sha" != "HEAD" ] && [ "$cur" = "$sha" ]; then
+      log ">>   $name code present at $sha, verifying requirements..."
+    else
+      rm -rf "$dest"
+    fi
   fi
 
-  if [ "$sha" = "HEAD" ]; then
-    git clone --depth 1 "$url" "$dest" >>"$LOG" 2>&1
-  else
-    git init -q "$dest" >>"$LOG" 2>&1 \
-      && git -C "$dest" remote add origin "$url" >>"$LOG" 2>&1 \
-      && git -C "$dest" fetch -q --depth 1 origin "$sha" >>"$LOG" 2>&1 \
-      && git -C "$dest" checkout -q FETCH_HEAD >>"$LOG" 2>&1
-  fi
-  if [ $? -ne 0 ] || [ ! -d "$dest" ]; then
-    log "FAIL $name — could not fetch $url ($sha); skipping"
-    rm -rf "$dest"
-    failed=$((failed + 1))
-    continue
+  if [ ! -d "$dest" ]; then
+    if [ "$sha" = "HEAD" ]; then
+      git clone --depth 1 "$url" "$dest" >>"$LOG" 2>&1
+    else
+      git init -q "$dest" >>"$LOG" 2>&1 \
+        && git -C "$dest" remote add origin "$url" >>"$LOG" 2>&1 \
+        && git -C "$dest" fetch -q --depth 1 origin "$sha" >>"$LOG" 2>&1 \
+        && git -C "$dest" checkout -q FETCH_HEAD >>"$LOG" 2>&1
+    fi
+    if [ $? -ne 0 ] || [ ! -d "$dest" ]; then
+      log "FAIL $name — could not fetch $url ($sha); skipping"
+      rm -rf "$dest"
+      failed=$((failed + 1))
+      continue
+    fi
   fi
 
   if [ -f "$dest/requirements.txt" ]; then
@@ -83,22 +96,32 @@ while read -r name url sha; do
     fi
 
     if [ -s "$clean_reqs" ]; then
-      if pip install --no-cache-dir=false -r "$clean_reqs" >>"$LOG" 2>&1; then
+      if pip install --no-cache-dir=false --extra-index-url https://download.pytorch.org/whl/cu128 -r "$clean_reqs" >>"$LOG" 2>&1; then
         log "ok   $name installed with requirements"
+        touch "$dest/.requirements_installed"
       else
         # Fallback: install line-by-line so one bad package doesn't fail the rest
         log "WARN $name batch reqs failed; attempting per-package fallback..."
+        fallback_ok=1
         while read -r req_line; do
           case "$req_line" in ''|\#*) continue ;; esac
-          pip install --no-cache-dir=false "$req_line" >>"$LOG" 2>&1 || log "WARN   $name skipped failing requirement: $req_line"
+          if ! pip install --no-cache-dir=false --extra-index-url https://download.pytorch.org/whl/cu128 "$req_line" >>"$LOG" 2>&1; then
+            log "WARN   $name skipped failing requirement: $req_line"
+            fallback_ok=0
+          fi
         done < "$clean_reqs"
+        if [ "$fallback_ok" -eq 1 ]; then
+          touch "$dest/.requirements_installed"
+        fi
         log "ok   $name installed (per-package fallback completed)"
       fi
       rm -f "$clean_reqs"
     else
+      touch "$dest/.requirements_installed"
       log "ok   $name installed (all deps satisfied by base environment)"
     fi
   else
+    touch "$dest/.requirements_installed"
     log "ok   $name installed"
   fi
   ok=$((ok + 1))

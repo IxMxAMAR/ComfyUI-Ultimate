@@ -81,8 +81,10 @@ cmd_add() {
     exit 1
   fi
   if cn_parse "$MANIFEST" | awk '{print $1}' | grep -qxF "$name"; then
-    echo "$name is already pinned." >&2
-    exit 1
+    echo "$name is already pinned. Re-running restore to verify dependencies..."
+    bash /opt/scripts/restore_nodes.sh
+    echo "Done. Restart ComfyUI to load it."
+    return 0
   fi
   printf '%s %s %s\n' "$name" "$url" "${sha:-HEAD}" >> "$MANIFEST"
   echo "Pinned $name. Installing now..."

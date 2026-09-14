@@ -41,7 +41,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends software-proper
 # constraints.txt applied at build time to ensure a reproducible base image.
 COPY constraints.txt /opt/constraints.txt
 RUN python3.12 -m venv /opt/venv \
- && python -m pip install --upgrade pip setuptools wheel uv scikit-build-core
+ && python -m pip install --upgrade pip setuptools wheel uv scikit-build-core \
+ && mkdir -p /etc && printf "[global]\nextra-index-url = https://download.pytorch.org/whl/cu128\n" > /etc/pip.conf
 
 # ---- 3. torch cu128 FIRST (auto-pulls triton 3.4.0). Assert before building on it. ----
 RUN pip install torch==2.8.0+cu128 torchvision==0.23.0+cu128 torchaudio==2.8.0+cu128 \
