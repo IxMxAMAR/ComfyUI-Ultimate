@@ -17,6 +17,7 @@ export PATH="/opt/venv/bin:$PATH"
 export VIRTUAL_ENV="/opt/venv"
 unset PIP_CONSTRAINT
 unset UV_CONSTRAINT
+export PIP_NO_CACHE_DIR=0
 export PIP_EXTRA_INDEX_URL="${PIP_EXTRA_INDEX_URL:-https://download.pytorch.org/whl/cu128}"
 
 # Wheel cache on the volume, so the second boot is far faster than the first.
@@ -96,7 +97,7 @@ while read -r name url sha; do
     fi
 
     if [ -s "$clean_reqs" ]; then
-      if pip install --no-cache-dir=false --extra-index-url https://download.pytorch.org/whl/cu128 -r "$clean_reqs" >>"$LOG" 2>&1; then
+      if pip install --cache-dir "$PIP_CACHE_DIR" --extra-index-url "$PIP_EXTRA_INDEX_URL" -r "$clean_reqs" >>"$LOG" 2>&1; then
         log "ok   $name installed with requirements"
         touch "$dest/.requirements_installed"
       else
@@ -105,7 +106,7 @@ while read -r name url sha; do
         fallback_ok=1
         while read -r req_line; do
           case "$req_line" in ''|\#*) continue ;; esac
-          if ! pip install --no-cache-dir=false --extra-index-url https://download.pytorch.org/whl/cu128 "$req_line" >>"$LOG" 2>&1; then
+          if ! pip install --cache-dir "$PIP_CACHE_DIR" --extra-index-url "$PIP_EXTRA_INDEX_URL" "$req_line" >>"$LOG" 2>&1; then
             log "WARN   $name skipped failing requirement: $req_line"
             fallback_ok=0
           fi
