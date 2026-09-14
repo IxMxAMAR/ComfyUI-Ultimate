@@ -50,8 +50,8 @@ if command -v cygpath >/dev/null 2>&1; then
   PYSCRIPTS="$(cygpath -w "$SCRIPTS_DIR")"
 fi
 out="$(python -c "
-import sys, os, types
-sys.path.insert(0, r'$PYSCRIPTS')
+import sys, os, types, importlib.util
+
 try:
     import numpy as np
 except ModuleNotFoundError:
@@ -64,12 +64,17 @@ except ModuleNotFoundError:
     np.str_ = str
     np.bytes_ = bytes
     sys.modules['numpy'] = np
-import sitecustomize
+
+spec = importlib.util.spec_from_file_location('sitecustomize', os.path.join(r'$PYSCRIPTS', 'sitecustomize.py'))
+mod = importlib.util.module_from_spec(spec)
+sys.modules['sitecustomize'] = mod
+spec.loader.exec_module(mod)
+
 assert hasattr(np, 'float_'), 'float_ missing'
 assert hasattr(np, 'int_'), 'int_ missing'
 assert hasattr(np, 'bool_'), 'bool_ missing'
 print('OK')
-" 2>/dev/null)"
+" 2>&1 | tail -n 1)"
 assert_eq "$out" "OK" "NumPy 1.x aliases present via sitecustomize"
 
 echo "-- configure_manager"
