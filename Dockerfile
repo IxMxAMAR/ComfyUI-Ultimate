@@ -89,8 +89,20 @@ RUN uv pip install --no-cache --constraint /opt/constraints.txt \
       onnx jupyterlab qwen-vl-utils \
  && cp /opt/scripts/sitecustomize.py /opt/venv/lib/python3.12/site-packages/sitecustomize.py
 
-# ---- 6. ComfyUI core (v0.35.1) ----
-RUN git clone --depth 1 --branch v0.35.1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
+# ---- 6. ComfyUI core (v0.37.4) ----
+RUN git clone --depth 1 --branch v0.37.4 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
+# ComfyUI's create_origin_only_middleware() (server.py) returns a bare, body-less
+# 403 for ANY request carrying `Sec-Fetch-Site: cross-site`. That is exactly what
+# a browser sends when you *click* the pod's ComfyUI link from the RunPod console
+# (console.runpod.io -> *.proxy.runpod.net is cross-site), so the link looks
+# broken while pasting the same URL works (that sends `none`). The body-less 403
+# is why Firefox shows about:neterror and Chrome shows a generic HTTP ERROR 403.
+# Relax it to allow safe top-level navigations (GET/HEAD + Sec-Fetch-Mode:
+# navigate) only; every other cross-site request is still blocked, so the CSRF
+# protection that actually matters (a random site POSTing to queue workflows)
+# stays intact. Not yet fixed upstream.
+# Upstream: https://github.com/Comfy-Org/ComfyUI/issues/16203
+RUN python /opt/scripts/patch_server.py
 WORKDIR /ComfyUI
 RUN uv pip install --no-cache --constraint /opt/constraints.txt -r requirements.txt
 

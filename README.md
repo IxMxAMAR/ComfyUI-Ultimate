@@ -52,6 +52,7 @@ Most ComfyUI cloud images either ship nothing (you install everything by hand) o
 | NumPy | `2.2.6` |
 | GPU coverage | sm_80 / 86 / 89 / 90 / **120** (Ampere → Ada → Hopper → **Blackwell / RTX 5090**) |
 | Attention | **SageAttention 2.2** + **FlashAttention 2.8.3** + PyTorch SDPA |
+| ComfyUI | `v0.37.4` (with the cross-site navigation fix — see Troubleshooting) |
 | Custom nodes | **29 packs**, pinned to exact commits |
 | Web services | ComfyUI · JupyterLab · File Browser · SSH |
 | Image size | ~13 GB compressed |
@@ -275,16 +276,27 @@ Always attach a Network Volume at `/workspace` for anything you want to keep.
 
 ## Troubleshooting
 
-### ComfyUI shows **403 Forbidden** but Jupyter/File Browser work
-This is the #1 gotcha and it's **not the image** — ComfyUI is the slowest service to start (it loads torch + 29 node packs, ~60–90s), while Jupyter/File Browser are up in seconds. If you click the ComfyUI link *during* that startup window, RunPod returns a 403 **and your browser caches it** for that subdomain — so it keeps showing 403 even after ComfyUI is ready.
+### ComfyUI shows **403 Forbidden** when you *click* the link, but works if you paste it
+This is ComfyUI's own doing — not RunPod's, not a startup-timing problem, and not a browser cache.
 
-**Fix:**
-- Open the ComfyUI link in an **Incognito/Private window** (or hard-refresh with `Ctrl+Shift+R`). It will load.
-- Going forward, wait until the pod log shows `To see the GUI go to:` before opening ComfyUI.
+ComfyUI ships a CSRF middleware (`create_origin_only_middleware()` in `server.py`) that returns a bare, body-less **403** for *any* request whose `Sec-Fetch-Site` header is `cross-site`. That is exactly the header a browser sends when you **click a link** from another site — and the RunPod console lives on `console.runpod.io` while the ComfyUI link is `*.proxy.runpod.net`, so a click is cross-site. Pasting the URL into the address bar sends `Sec-Fetch-Site: none` and works. Chrome and Firefox both behave this way.
 
-You can verify ComfyUI is healthy from a terminal (Jupyter/SSH):
+Because that 403 carries `Content-Length: 0`, the browser discards it and draws its own error page — Firefox shows `about:neterror` ("Problem loading page"), Chrome shows a generic `HTTP ERROR 403`. On Firefox's error page there is no origin, so `sessionStorage` throws `NS_ERROR_NOT_AVAILABLE` and ComfyUI's frontend could never have booted there anyway.
+
+**Fix (this image):** the build runs `scripts/patch_server.py`, which relaxes the middleware to allow safe top-level navigations (`GET`/`HEAD` + `Sec-Fetch-Mode: navigate`) while still blocking every other cross-site request — so the protection that matters (a random site POSTing to queue workflows) stays intact.
+
+**Workaround on an unpatched build:** bookmark the ComfyUI URL, or paste it. A bookmark click is a user-initiated navigation, not one from a document, so it sends `none` and loads. Don't click the console link.
+
+Upstream: [Comfy-Org/ComfyUI#16203](https://github.com/Comfy-Org/ComfyUI/issues/16203) — still open as of v0.37.4.
+
+You can confirm both behaviours from any terminal (Jupyter/SSH), and check that ComfyUI itself is healthy:
 ```bash
+POD=https://<POD_ID>-8188.proxy.runpod.net
 curl -sI http://localhost:8188/ | head -1   # expect: HTTP/1.1 200 OK
+# the click path — patched: 200 | unpatched: 403
+curl -o /dev/null -w '%{http_code}\n' -H 'Sec-Fetch-Site: cross-site' -H 'Sec-Fetch-Mode: navigate' $POD/
+# cross-site POST — always 403, protection intact
+curl -o /dev/null -w '%{http_code}\n' -X POST -H 'Sec-Fetch-Site: cross-site' -H 'Content-Type: application/json' -d '{}' $POD/prompt
 ```
 
 ### A port stays "Initializing" in RunPod
