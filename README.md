@@ -299,6 +299,8 @@ curl -o /dev/null -w '%{http_code}\n' -H 'Sec-Fetch-Site: cross-site' -H 'Sec-Fe
 curl -o /dev/null -w '%{http_code}\n' -X POST -H 'Sec-Fetch-Site: cross-site' -H 'Content-Type: application/json' -d '{}' $POD/prompt
 ```
 
+Full write-up with the evidence, and why it isn't a RunPod or startup problem: [docs/reverse-proxy-403.md](docs/reverse-proxy-403.md).
+
 ### A port stays "Initializing" in RunPod
 RunPod's readiness label can lag (e.g. Jupyter returns a redirect, not a 200). If the service answers locally (`curl -sI localhost:<port>`), it's fine — just open the link.
 
