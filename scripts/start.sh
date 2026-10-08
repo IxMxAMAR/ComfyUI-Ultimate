@@ -45,6 +45,19 @@ else
   echo "[start] filebrowser not installed, skipping :8080"
 fi
 
+# --- PodPanel: outputs gallery, downloads, and the drop-in preset runner ---
+# Reads the same volume ComfyUI writes to, so the gallery fills up on its own.
+# Set PODPANEL_ENABLE=0 to skip it, PODPANEL_TOKEN to require ?token=… .
+if [ "${PODPANEL_ENABLE:-1}" = "1" ] && [ -f /opt/scripts/podpanel.py ]; then
+  PODPANEL_ARGS="--port ${PODPANEL_PORT:-8090} --output $WORKSPACE/output --workdir $WORKSPACE/model-setup"
+  [ -n "${PODPANEL_TOKEN:-}" ] && PODPANEL_ARGS="$PODPANEL_ARGS --token $PODPANEL_TOKEN"
+  # shellcheck disable=SC2086
+  nohup python /opt/scripts/podpanel.py $PODPANEL_ARGS > /var/log/podpanel.log 2>&1 &
+  echo "[start] podpanel up on :${PODPANEL_PORT:-8090} (gallery + downloads + preset runner)"
+else
+  echo "[start] podpanel disabled or missing, skipping :${PODPANEL_PORT:-8090}"
+fi
+
 # --- Runtime Compatibility & ComfyUI-Manager Protection ---
 # 1. Ensure sitecustomize.py is loaded in venv (NumPy 1.x backwards compatibility shim for older nodes)
 if [ -f /opt/scripts/sitecustomize.py ]; then

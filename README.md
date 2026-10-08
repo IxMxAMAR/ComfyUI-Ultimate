@@ -18,6 +18,7 @@ Built automatically by GitHub Actions and published to Docker Hub:
 - [Services & ports](#services--ports)
 - [Environment variables](#environment-variables)
 - [Getting models](#getting-models)
+- [PodPanel](#podpanel)
 - [Keeping custom nodes across rebuilds](#keeping-custom-nodes-across-rebuilds)
 - [Persistent storage](#persistent-storage)
 - [SSH access](#ssh-access)
@@ -125,7 +126,7 @@ Every pack is pinned to an exact commit (see [`node_pins.txt`](node_pins.txt)) f
    ixmxamar/comfyui-ultimate:latest
    ```
 2. **Pick an RTX-class GPU** — RTX 4090 / **5090** recommended. (The RTX Video Super Resolution node needs a consumer RTX GPU; SageAttention's Blackwell path targets the 5090.)
-3. **Expose ports** — HTTP: `8188`, `8888`, `8080`; TCP: `22` (see [Services & ports](#services--ports)).
+3. **Expose ports** — HTTP: `8188`, `8888`, `8080`, `8090`; TCP: `22` (see [Services & ports](#services--ports)).
 4. **Attach a Network Volume** mounted at `/workspace` (so models & outputs persist).
 5. **(Optional) Set env vars** — `CIVITAI_API_KEY`, `HF_TOKEN` (see [Environment variables](#environment-variables)).
 6. Wait ~60–90s for first boot (ComfyUI loads torch + 29 node packs), then open the **ComfyUI** link.
@@ -141,6 +142,7 @@ Every pack is pinned to an exact commit (see [`node_pins.txt`](node_pins.txt)) f
 | **ComfyUI** | `8188` | HTTP | The main UI |
 | **JupyterLab** | `8888` | HTTP | File manager + terminal + notebooks — **no login by default** |
 | **File Browser** | `8080` | HTTP | Lightweight web file manager (no auth) |
+| **PodPanel** | `8090` | HTTP | Outputs gallery, zip downloads, and a drop-in runner for [PodPreset](https://github.com/IxMxAMAR/ComfyUI-Ultimate) `setup.sh` files (see [PodPanel](#podpanel)) |
 | **SSH** | `22` | **TCP** | Add under *TCP ports*; needs an SSH key (see [SSH access](#ssh-access)) |
 
 All web services bind `0.0.0.0` and are reached through RunPod's proxy (`https://<pod-id>-<port>.proxy.runpod.net`).
@@ -156,6 +158,9 @@ All web services bind `0.0.0.0` and are reached through RunPod's proxy (`https:/
 | `JUPYTER_TOKEN` | *(empty)* | Empty = **JupyterLab open / no login**. Set a value to require a token |
 | `PUBLIC_KEY` | — | SSH public key (RunPod injects this automatically from your account) |
 | `COMFY_ARGS` | — | Extra args appended to `python main.py` (e.g. `--lowvram`) |
+| `PODPANEL_ENABLE` | `1` | Set to `0` to skip PodPanel entirely |
+| `PODPANEL_PORT` | `8090` | PodPanel's port |
+| `PODPANEL_TOKEN` | *(empty)* | Empty = **PodPanel open / no login**, matching JupyterLab. Set a value to require `?token=…` |
 | `WORKSPACE` | `/workspace` | Persistent volume mount point |
 
 ---
@@ -168,6 +173,28 @@ All web services bind `0.0.0.0` and are reached through RunPod's proxy (`https:/
 - **ComfyUI-RunpodDirect** — paste any direct URL (Civitai / HuggingFace / generic) and it streams to the pod with fast multi-connection downloads, a queue, and progress.
 
 Everything downloads onto the `/workspace` volume, so it survives pod restarts.
+
+---
+
+## PodPanel
+
+A small web panel on port `8090` covering the other half of the loop: seeing what came out, getting it off the pod, and loading a model preset onto a fresh pod without a terminal.
+
+Open `https://<pod-id>-8090.proxy.runpod.net` (add `8090` under **Expose HTTP Ports**). Three things:
+
+**Outputs** — every image, video and audio file under `/workspace/output`, newest first, with kind/folder/name filters and a lightbox (arrow keys to move, `Esc` to close). Thumbnails come from Pillow, video posters from ffmpeg; both are already in the image.
+
+**Downloads** — the lightbox downloads a single file; tick any number of cards and **Download selected** streams them as one zip. Media is served with HTTP range support, so videos and audio scrub instead of downloading whole.
+
+**Run a preset** — drop in a `setup.sh` from PodPreset (or paste one) and it runs with `bash` from `/workspace`, one job at a time, streaming the log live. Optional CivitAI/HuggingFace keys are passed to that run as environment variables only — never written into the script or to disk. Uploaded scripts, logs and exit codes live in `/workspace/model-setup/uploads/`, so they survive a restart and the job list is rebuilt from there.
+
+> ⚠️ **It runs whatever you drop in it.** There is no authentication by default — the same posture as JupyterLab and File Browser on this image — and a submitted script runs as root with your volume mounted. Treat the port as sensitive: set `PODPANEL_TOKEN` to require `?token=…`, or `PODPANEL_ENABLE=0` to switch it off.
+
+`scripts/start.sh` starts it (log: `/var/log/podpanel.log`). It is a single stdlib-only file, so you can also drop `podpanel.py` onto an already-running pod and start it by hand:
+
+```bash
+python /workspace/podpanel.py --port 8090 --output /workspace/output &
+```
 
 ---
 

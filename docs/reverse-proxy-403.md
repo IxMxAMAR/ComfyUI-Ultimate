@@ -40,6 +40,11 @@ RunPod's proxy passes cross-site requests through without complaint — JupyterL
 and File Browser prove that. Only the process on 8188 refuses, and that process
 is ComfyUI.
 
+PodPanel (8090) was added later and is not part of the original three-port
+comparison. Measured against the panel directly, it answers **200** to `/` and to
+`/api/items` both with and without `Sec-Fetch-Site: cross-site`; it never inspects
+that header, so this class of 403 cannot apply to it.
+
 ComfyUI is also picky about exactly one header value and nothing else:
 
 | Header sent to ComfyUI | Result |

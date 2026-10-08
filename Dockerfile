@@ -141,6 +141,6 @@ RUN chmod +x /opt/scripts/comfy-nodes \
 
 # ---- 13. Entrypoint ----
 RUN cp /opt/scripts/start.sh /opt/start.sh && chmod +x /opt/start.sh
-EXPOSE 8188 8888 22 8080
+EXPOSE 8188 8888 22 8080 8090
 WORKDIR /ComfyUI
 ENTRYPOINT ["/opt/start.sh"]
