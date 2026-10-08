@@ -52,7 +52,7 @@ Most ComfyUI cloud images either ship nothing (you install everything by hand) o
 | NumPy | `2.2.6` |
 | GPU coverage | sm_80 / 86 / 89 / 90 / **120** (Ampere → Ada → Hopper → **Blackwell / RTX 5090**) |
 | Attention | **SageAttention 2.2** + **FlashAttention 2.8.3** + PyTorch SDPA |
-| ComfyUI | `v0.37.4` (with the cross-site navigation fix — see Troubleshooting) |
+| ComfyUI | `v0.39.2` (with the cross-site navigation fix — see Troubleshooting) |
 | Custom nodes | **29 packs**, pinned to exact commits |
 | Web services | ComfyUI · JupyterLab · File Browser · SSH |
 | Image size | ~13 GB compressed |
@@ -287,7 +287,7 @@ Because that 403 carries `Content-Length: 0`, the browser discards it and draws 
 
 **Workaround on an unpatched build:** bookmark the ComfyUI URL, or paste it. A bookmark click is a user-initiated navigation, not one from a document, so it sends `none` and loads. Don't click the console link.
 
-Upstream: [Comfy-Org/ComfyUI#16203](https://github.com/Comfy-Org/ComfyUI/issues/16203) — still open as of v0.37.4.
+Upstream: [Comfy-Org/ComfyUI#16203](https://github.com/Comfy-Org/ComfyUI/issues/16203) — still open as of v0.39.2.
 
 You can confirm both behaviours from any terminal (Jupyter/SSH), and check that ComfyUI itself is healthy:
 ```bash

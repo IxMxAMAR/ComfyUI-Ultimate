@@ -22,8 +22,8 @@ bare 403 with Content-Length: 0, which Firefox renders as about:neterror
 "Problem loading page" and Chrome as a generic HTTP ERROR 403. Typing or pasting
 the same URL works, because that sends Sec-Fetch-Site: none.
 
-Verified byte-identical at v0.35.1, v0.37.4 and current master, so the anchor
-below holds across the versions this image has pinned.
+Verified byte-identical at v0.35.1, v0.37.4, v0.39.2 and current master, so the
+anchor below holds across the versions this image has pinned.
 
 Upstream: https://github.com/Comfy-Org/ComfyUI/issues/16203
 

@@ -89,8 +89,8 @@ RUN uv pip install --no-cache --constraint /opt/constraints.txt \
       onnx jupyterlab qwen-vl-utils \
  && cp /opt/scripts/sitecustomize.py /opt/venv/lib/python3.12/site-packages/sitecustomize.py
 
-# ---- 6. ComfyUI core (v0.37.4) ----
-RUN git clone --depth 1 --branch v0.37.4 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
+# ---- 6. ComfyUI core (v0.39.2) ----
+RUN git clone --depth 1 --branch v0.39.2 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI
 # ComfyUI's create_origin_only_middleware() (server.py) returns a bare, body-less
 # 403 for ANY request carrying `Sec-Fetch-Site: cross-site`. That is exactly what
 # a browser sends when you *click* the pod's ComfyUI link from the RunPod console

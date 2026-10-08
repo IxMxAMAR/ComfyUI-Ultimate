@@ -1,4 +1,4 @@
-# node_pins.txt — 29 custom-node packs pinned to exact commits (pins refreshed 2026-09-14; ComfyUI core now v0.37.4).
+# node_pins.txt — 29 custom-node packs pinned to exact commits (pins refreshed 2026-09-14; ComfyUI core now v0.39.2).
 # Format:  <dirname> <git_url> <commit_sha>
 # install_nodes.sh clones each into /ComfyUI/custom_nodes/<dirname> @ <commit_sha>.
 ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git 4f56cf3dfa7d
