@@ -15,6 +15,7 @@ Built automatically by GitHub Actions and published to Docker Hub:
 - [What's inside](#whats-inside)
 - [Bundled custom nodes (29)](#bundled-custom-nodes-29)
 - [Quick start on RunPod](#quick-start-on-runpod)
+- [The RunPod template page](#the-runpod-template-page)
 - [Services & ports](#services--ports)
 - [Environment variables](#environment-variables)
 - [Getting models](#getting-models)
@@ -132,6 +133,34 @@ Every pack is pinned to an exact commit (see [`node_pins.txt`](node_pins.txt)) f
 6. Wait ~60–90s for first boot (ComfyUI loads torch + 29 node packs), then open the **ComfyUI** link.
 
 > ⏱️ **First boot takes ~60–90 seconds** because the image loads PyTorch and all 29 node packs. **Open the ComfyUI link only after** the pod log shows `To see the GUI go to:`. See [Troubleshooting](#troubleshooting) if you get a 403.
+
+---
+
+## The RunPod template page
+
+The published template — [console.runpod.io/hub/template/lbw5xj63wp](https://console.runpod.io/hub/template/lbw5xj63wp) —
+carries its own README. That text is **not** part of the image and not part of this repo as far as
+RunPod is concerned: it lives on the template record and is served only by RunPod's GraphQL API.
+(REST v2 cannot set it — its `UpdateTemplateRequest` rejects unknown properties and has no `readme`
+field at all.)
+
+The source of truth is [`docs/template-readme.md`](docs/template-readme.md). Edit that file, then:
+
+```bash
+python tools/set_template_readme.py --dry-run    # show what would change
+python tools/set_template_readme.py              # push it
+python tools/set_template_readme.py --show       # print the live readme
+python tools/set_template_readme.py --create     # create the template from scratch
+```
+
+The key is read from `--key`, then `$RUNPOD_API_KEY`, then `~/.runpod/config.toml`. It must belong
+to the account that **owns** the template: a key for any other account can read a public template
+but every write comes back as `Template not found`. The script preserves the rest of the template
+definition (image, disk, volume, env, flags), and adds the PodPanel port `8090` if the template is
+missing it — templates created before PodPanel existed usually are.
+
+> ⚠️ `saveTemplate` is an upsert, so the script echoes the live definition back rather than sending
+> only the fields it means to change. `--dry-run` first is never a bad idea.
 
 ---
 
