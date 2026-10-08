@@ -54,6 +54,22 @@ for port in 8188 8888 8080 8090 22; do
   esac
 done
 
+# --- the console's editor is the real constraint, not the API ---------------
+# RunPod's console stops at 5000 characters. The API itself took 20,000 in a probe,
+# but anything past the console limit cannot be edited on the page afterwards, so the
+# file has to stay inside it.
+TESTS_RUN=$((TESTS_RUN + 1))
+if [ -n "$PY" ]; then
+  chars="$("$PY" -c 'import sys;print(len(open(sys.argv[1],encoding="utf-8").read().rstrip()))' "$README")"
+else
+  chars="$(printf '%s' "$body" | wc -c | tr -d ' ')"   # bytes: the stricter reading
+fi
+if [ "$chars" -le 5000 ]; then
+  echo "  ok: the README is $chars chars, inside the console's 5000 limit"
+else
+  fail "the README is $chars chars, over the console's 5000 limit"
+fi
+
 # --- the 403 advice must stay correct --------------------------------------
 # The old text told people to use Incognito or a hard refresh, and blamed a cached
 # 403. That is wrong: the 403 is ComfyUI's CSRF middleware rejecting a cross-site

@@ -42,6 +42,11 @@ DEFAULT_TEMPLATE = "lbw5xj63wp"
 DOCUMENTED_PORTS = ["8188/http", "8888/http", "8080/http", "8090/http", "22/tcp", "22/udp"]
 PODPANEL_PORT = "8090/http"
 
+# The console's readme editor stops here. The API does not -- a probe stored 20,009
+# characters intact -- but a longer readme can no longer be edited on the page, which
+# is where most people will want to touch it up.
+CONSOLE_LIMIT = 5000
+
 TEMPLATE_QUERY = """
 query($id: String!) {
   podTemplate(id: $id) {
@@ -211,8 +216,10 @@ def main() -> int:
     if not os.path.exists(args.readme):
         print(f"No such readme file: {args.readme}", file=sys.stderr)
         return 2
+    # RunPod strips a trailing newline on save, so strip it here too: the length
+    # reported, the length pushed and the length read back then all agree.
     with open(args.readme, encoding="utf-8") as fh:
-        readme = fh.read()
+        readme = fh.read().rstrip("\n")
 
     if args.create:
         current = dict(CANONICAL)
@@ -231,8 +238,19 @@ def main() -> int:
 
     print(f"template : {current.get('id') or '(new)'}  {current.get('name', '')}")
     print(f"image    : {current.get('imageName', CANONICAL['imageName'])}")
+    length = len(readme.rstrip("\n"))
+    print(f"readme   : {length} chars"
+          + (f"  ({CONSOLE_LIMIT - length} under the console's {CONSOLE_LIMIT} limit)"
+             if length <= CONSOLE_LIMIT else
+             f"  ** {length - CONSOLE_LIMIT} OVER the console's {CONSOLE_LIMIT} limit **"))
     for note in notes or ["no changes needed"]:
         print(f"  - {note}")
+
+    if length > CONSOLE_LIMIT:
+        print(f"\nwarning: the API will accept this, but RunPod's console readme editor stops\n"
+              f"at {CONSOLE_LIMIT} characters, so the page could no longer be edited in the UI.\n"
+              f"Trim {length - CONSOLE_LIMIT} characters if you want to keep editing it there.",
+              file=sys.stderr)
 
     if args.dry_run:
         print("\n--dry-run: nothing was written.")
