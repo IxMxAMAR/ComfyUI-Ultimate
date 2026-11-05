@@ -1,32 +1,32 @@
-# node_pins.txt — 29 custom-node packs pinned to exact commits (pins refreshed 2026-09-14; ComfyUI core now v0.39.2).
+# node_pins.txt — 29 custom-node packs pinned to exact commits (pins refreshed 2026-11-05; ComfyUI core now v0.44.0).
 # Format:  <dirname> <git_url> <commit_sha>
 # install_nodes.sh clones each into /ComfyUI/custom_nodes/<dirname> @ <commit_sha>.
-ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git 4f56cf3dfa7d
-rgthree-comfy https://github.com/rgthree/rgthree-comfy.git 6b76ee6f2c5a
+ComfyUI-Manager https://github.com/ltdrdata/ComfyUI-Manager.git 4c50a2bc8b9e
+rgthree-comfy https://github.com/rgthree/rgthree-comfy.git bc48c6aaeca8
 ComfyUI-Custom-Scripts https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git 609f3afaa74b
-ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git 3f20054214fe
+ComfyUI-KJNodes https://github.com/kijai/ComfyUI-KJNodes.git ab72eda7ffad
 ComfyUI_essentials https://github.com/cubiq/ComfyUI_essentials.git 9d9f4bedfc9f
-was-node-suite-comfyui https://github.com/WASasquatch/was-node-suite-comfyui.git ea935d1044ae
+was-node-suite-comfyui https://github.com/WASasquatch/was-node-suite-comfyui.git 3c16dca9a58b
 ComfyUI-Crystools https://github.com/crystian/ComfyUI-Crystools.git 2f18256c5b50
-ComfyUI-Easy-Use https://github.com/yolain/ComfyUI-Easy-Use.git 4de1ab3b66e4
-cg-use-everywhere https://github.com/chrisgoringe/cg-use-everywhere.git 50ae9f8c5d8b
-ComfyUI-Impact-Pack https://github.com/ltdrdata/ComfyUI-Impact-Pack.git 429d0159ad42
+ComfyUI-Easy-Use https://github.com/yolain/ComfyUI-Easy-Use.git b0b47ca13721
+cg-use-everywhere https://github.com/chrisgoringe/cg-use-everywhere.git ffc99037eea8
+ComfyUI-Impact-Pack https://github.com/ltdrdata/ComfyUI-Impact-Pack.git eace4a905990
 ComfyUI-Impact-Subpack https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git 50c7b71a6a22
 ComfyUI_UltimateSDUpscale https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git a5547db9e1d0
 ComfyUI-Inspire-Pack https://github.com/ltdrdata/ComfyUI-Inspire-Pack.git d23db9aa544d
 efficiency-nodes-comfyui https://github.com/jags111/efficiency-nodes-comfyui.git 4579b7d6076b
-comfyui_controlnet_aux https://github.com/Fannovel16/comfyui_controlnet_aux.git e8b689a513c3
+comfyui_controlnet_aux https://github.com/Fannovel16/comfyui_controlnet_aux.git a587a4c15945
 ComfyUI-Advanced-ControlNet https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet.git 27a67fee80cf
 ComfyUI_IPAdapter_plus https://github.com/cubiq/ComfyUI_IPAdapter_plus.git a0f451a5113c
-ComfyUI-VideoHelperSuite https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git 4ee72c065db2
+ComfyUI-VideoHelperSuite https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git 4d907bee61e9
 ComfyUI-Frame-Interpolation https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git 26545cc2dd95
 ComfyUI-AnimateDiff-Evolved https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git 925765122100
 ComfyUI-WanVideoWrapper https://github.com/kijai/ComfyUI-WanVideoWrapper.git 088128b22424
 ComfyUI-GGUF https://github.com/city96/ComfyUI-GGUF.git 6ea2651e7df6
 ComfyUI-Florence2 https://github.com/kijai/ComfyUI-Florence2.git 9ece3de91421
 ComfyUI-segment-anything-2 https://github.com/kijai/ComfyUI-segment-anything-2.git 0c35fff5f382
-ComfyUI-RMBG https://github.com/1038lab/ComfyUI-RMBG.git 9edb2bec3900
-ComfyUI-Utility-MegaPack https://github.com/IxMxAMAR/ComfyUI-Utility-MegaPack.git 9feea5a1e9ec
-Nvidia_RTX_Nodes_ComfyUI https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git 892515e3eb9a
+ComfyUI-RMBG https://github.com/1038lab/ComfyUI-RMBG.git a66a5e641a54
+ComfyUI-Utility-MegaPack https://github.com/IxMxAMAR/ComfyUI-Utility-MegaPack.git e8a0eaef4452
+Nvidia_RTX_Nodes_ComfyUI https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git 38d790ded006
 Civicomfy https://github.com/MoonGoblinDev/Civicomfy.git 555e984bbcb0
-ComfyUI-RunpodDirect https://github.com/MadiatorLabs/ComfyUI-RunpodDirect.git 809065c9d2f3
+ComfyUI-RunpodDirect https://github.com/MadiatorLabs/ComfyUI-RunpodDirect.git 9e32b1a09577
