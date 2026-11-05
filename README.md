@@ -325,6 +325,7 @@ Always attach a Network Volume at `/workspace` for anything you want to keep.
 - **SageAttention 2.2** is the primary accelerator. Prefer the **KJNodes → "Patch Sage Attention"** node over the global `--use-sage-attention` flag — the global flag can produce black frames on some WAN/Qwen models.
 - **FlashAttention 2.8.3** is installed as an optional backend (FA2; FA3/FA4 don't support consumer Blackwell).
 - **PyTorch SDPA** is always available as a fallback.
+- **comfy-kitchen (CK) INT8 attention** is deliberately **unavailable on this image**. CK's prebuilt CUDA kernels are CUDA-13 builds needing NVIDIA driver r580+, while this image is torch cu128, so the kernels cannot load. ComfyUI already disables CK's cuda backend for cu12x, but some CK entry points (INT8 attention, flash-attention decode, INT8 decode) bypass that gate — see [Quantized VAE decode crashes with `detect_k_anchor`](#quantized-vae-decode-crashes-with-detect_k_anchor-kernel-launch-failed). A boot-time gate (`scripts/patch_ck_cuda_gate.py`) now makes those probes report unavailable so ComfyUI falls back cleanly. The only cost is the INT8-attention speedup on quantized VAEs.
 
 > On RTX 5090, SageAttention runs via its sm_89/fp8-compatible kernels (the build that the WanVideoWrapper community uses on 50-series). If you ever hit a kernel error on Blackwell, open an issue — a from-source `sm_120` build path exists.
 
@@ -363,6 +364,33 @@ RunPod's readiness label can lag (e.g. Jupyter returns a redirect, not a 200). I
 ### RTX Video Super Resolution node "failed to import"
 That node (`nvidia-vfx`) loads CUDA at import and **only works on a real RTX GPU**. It is intentionally skipped in CI (which has no GPU) and will load on your pod.
 
+### Quantized VAE decode crashes with `detect_k_anchor kernel launch failed`
+```
+RuntimeError: detect_k_anchor kernel launch failed: CUDA driver version is
+insufficient for CUDA runtime version
+```
+Sampling completes (4–8 steps) and then **VAEDecode** dies. It happens on any workflow whose VAE decoder weights are quantized — MiniMax H3 int8/convrot VAEs, for example; the loader picks the layout from the file's own headers, so a name like `minimax_h3_video_vae_fp16` is not a reliable signal that the weights are fp16. It is not your driver, your VAE or your workflow.
+
+**What actually happens.** Quantized VAE weights send ComfyUI down its INT8-attention path (`comfy/ldm/minimax/vae.py` → `comfy.quant_ops.ck.int8_attention`). `int8_attention` is the one comfy-kitchen entry point that **bypasses comfy-kitchen's own backend registry**, so the gate ComfyUI already applies on a cu12x torch — `ck.registry.disable("cuda")`, logging *"You need pytorch with cu130 or higher to use optimized CUDA operations"* — does not cover it. Every comfy-kitchen wheel ever published (0.1.0 onward) is a **CUDA-13 build requiring NVIDIA driver r580+**, so the first kernel on that path cannot be loaded and the launch fails with `cudaErrorInsufficientDriver` (35). CUDA loads kernels lazily, which is why the failure lands at decode rather than at startup. Upstream closed the same defect for `flash_attention_decode` with *"We do not support using cuda 12 on newer GPUs"* ([ComfyUI #16449](https://github.com/Comfy-Org/ComfyUI/issues/16449)).
+
+**What this image does about it.** `scripts/patch_ck_cuda_gate.py` appends a gate to the installed `comfy_kitchen/__init__.py` that wraps every public `*_is_available` probe, plus `comfy_kitchen.int8_decode.is_available` (imported directly by ComfyUI's Qwen3.5 text encoder): when CK's CUDA kernels cannot run (torch cu12x, registry backend disabled, or a driver below r580), the probes report unavailable and ComfyUI takes its normal attention path. It is applied at build time and **re-applied on every boot**, because updating ComfyUI inside a pod reinstalls comfy-kitchen and would otherwise undo it. Verify or re-apply after a manual CK upgrade:
+```bash
+python /opt/scripts/patch_ck_cuda_gate.py --report     # verdict + which probes are gated
+```
+The gate leaves a cu130 image on an r580+ host completely untouched, so this is safe to keep after a future CUDA-13 upgrade.
+
+### `ValueError: too many values to unpack (expected 3)` from `audio_vae.py`
+The MiniMax-H3 reference/keyframe nodes take **two** VAE inputs and they are easy to cross:
+
+| Input | Must receive |
+|---|---|
+| `vae` | the **video** VAE — `minimax_h3_video_vae_*.safetensors` |
+| `audio_vae` | the **audio** VAE — `minimax_h3_audio_vae_fp32.safetensors` |
+
+(`MiniMaxH3ReferenceToVideo`, `MiniMaxH3ImageToVideo` and `MiniMaxH3AddGuide` all have this pair.) If an audio VAE reaches `vae`, the node hands it an image and `MiniMaxH3AudioVAE.encode()` unpacks `waveform.shape` as `(batch, channels, length)` — an image has 4–5 dims, hence the error. The giveaway is the log line just before the traceback: `Model MiniMaxH3AudioVAE prepared for dynamic VRAM loading` while the node is encoding a reference **image**. Nothing is wrong with the image, the model or the VAE file; only the wiring. The same nodes also feed the video VAE from `MiniMaxH3ImageToVideo`'s keyframes, so a crossed pair breaks every reference workflow.
+
+> Note the file names: a MiniMax H3 VAE named `..._fp16` can still carry **int8/convrot quantization metadata** (the loader logs `Found quantization metadata version 1` right after loading it), which is what puts VAE decode on comfy-kitchen's INT8-attention path — see [Quantized VAE decode crashes with `detect_k_anchor`](#quantized-vae-decode-crashes-with-detect_k_anchor-kernel-launch-failed). Check the log, not the filename.
+
 ### Models disappear after a restart
 Attach a Network Volume at `/workspace`. Without it, downloads live in ephemeral container storage.
 
@@ -374,7 +402,7 @@ The hard part of a 29-pack ComfyUI image is dependency conflicts. The strategy:
 
 1. **Build-time `constraints.txt` + runtime protection** — hard-pins every ABI-sensitive package during base build, while protecting torch cu128 at runtime via ComfyUI-Manager downgrade blacklists and requirements sanitization so user-installed nodes (new or old) never fail from rigid constraint conflicts.
 2. **Deterministic install order** — torch (from the cu128 index) first, then attention backends, then a pre-baked ABI set, then ComfyUI core, then the 29 nodes, then a final opencv/onnxruntime normalization to a single variant.
-3. **CI quality gates** — `smoke_test.py` runs *inside* the build (asserts single cv2 variant, numpy 2.2, torch cu128, HF coherence), and a **node-import gate** boots ComfyUI headless and **fails the build unless all 29 packs import**. The image is pushed only if both gates pass.
+3. **CI quality gates** — `smoke_test.py` runs *inside* the build (asserts single cv2 variant, numpy 2.2, torch cu128, HF coherence); a **node-import gate** boots ComfyUI headless and **fails the build unless all 29 packs import**; and a **comfy-kitchen CUDA-gate check** runs against the *finished* image, so a later pip step or a node pack cannot silently reinstall CK and undo the gate described in [Troubleshooting](#quantized-vae-decode-crashes-with-detect_k_anchor-kernel-launch-failed). The image is pushed only if all gates pass.
 
 ---
 
@@ -408,6 +436,7 @@ docker build -t comfyui-ultimate .
 
 - **M2** — slim the image (runtime base / multi-stage), RunPod template doc, optional GPU smoke test.
 - **M3** — Serverless mode (`handler.py`) on the same image for autoscaling API endpoints.
+- **cu130 image line** — rebuild torch, SageAttention and FlashAttention on CUDA 13 so comfy-kitchen's INT8 attention and flash-attention-decode actually run (needs a host with NVIDIA driver r580+; the pod's driver belongs to the RunPod host and cannot be changed from inside the container). Until then the CK CUDA gate keeps the cu128 line correct rather than merely fast.
 - Optional `WITH_FACEID` build flag (insightface on a numpy-1.26 profile) for IP-Adapter FaceID / InstantID.
 
 ---

@@ -106,6 +106,22 @@ RUN python /opt/scripts/patch_server.py
 WORKDIR /ComfyUI
 RUN uv pip install --no-cache --constraint /opt/constraints.txt -r requirements.txt
 
+# ---- 6b. Gate comfy-kitchen's CUDA probes on a backend that can actually run ----
+# This image is torch cu128, so ComfyUI disables comfy-kitchen's cuda backend
+# ("You need pytorch with cu130 or higher to use optimized CUDA operations") and
+# every registry-dispatched comfy-kitchen op degrades to triton/eager. But
+# int8_attention, flash_attention_decode and int8_decode bypass that registry, and every
+# comfy-kitchen wheel ever published is a CUDA-13 build needing driver r580+, so on
+# a pre-r580 RunPod host they launch a kernel that cannot load:
+#   RuntimeError: detect_k_anchor kernel launch failed: CUDA driver version is
+#   insufficient for CUDA runtime version      (MiniMax H3 / convrot VAE decode)
+# The patcher appends a gate to the installed comfy_kitchen/__init__.py that makes
+# those probes report unavailable exactly when the kernels cannot run, so ComfyUI
+# takes its normal attention path. start.sh re-applies it, because updating ComfyUI
+# inside a pod reinstalls comfy-kitchen and would otherwise undo this.
+RUN python /opt/scripts/patch_ck_cuda_gate.py --require --report \
+ && python /opt/scripts/patch_ck_cuda_gate.py --check
+
 # ---- 7. Custom nodes: clone 29 @ pinned commits + install per policy ----
 # (scripts already copied + chmod'd before step 4)
 COPY node_pins.txt /opt/node_pins.txt

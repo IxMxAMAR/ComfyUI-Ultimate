@@ -82,6 +82,15 @@ if [ "$(python -c 'import importlib.metadata as md; print(len([d for d in ("open
   pip install --no-deps opencv-contrib-python-headless==4.11.0.86 >/dev/null 2>&1 || true
 fi
 
+# --- comfy-kitchen CUDA gate. Re-applied every boot: updating ComfyUI inside a
+#     pod reinstalls comfy-kitchen, which undoes the build-time patch and brings
+#     back the MiniMax H3 / convrot VAE decode crash ("detect_k_anchor kernel
+#     launch failed: CUDA driver version is insufficient"). Never fatal. ---
+if [ -f /opt/scripts/patch_ck_cuda_gate.py ]; then
+  python /opt/scripts/patch_ck_cuda_gate.py --report \
+    || echo "[start] WARN comfy-kitchen CUDA gate not applied; quantized VAE decode may crash"
+fi
+
 # --- ComfyUI (foreground). Attention: prefer the KJNodes 'Patch Sage Attention'
 #     node over the global --use-sage-attention flag. Override via COMFY_ARGS. ---
 cd /ComfyUI

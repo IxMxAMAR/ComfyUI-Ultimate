@@ -82,6 +82,12 @@ jobs:
         # must be vendored at build time so pods boot reliably offline.
         run: docker run --rm --network none --entrypoint bash ${{ env.IMAGE }}:ci-${{ github.sha }} /opt/scripts/ci_node_import_gate.sh
 
+      - name: comfy-kitchen CUDA-gate check (patch must survive the full build)
+        # The gate lives in site-packages, so a later pip step or a node pack could
+        # reinstall comfy-kitchen and silently undo it. Assert it on the FINISHED
+        # image, not only where it was applied. --report also logs the verdict.
+        run: docker run --rm --entrypoint bash ${{ env.IMAGE }}:ci-${{ github.sha }} -c "python /opt/scripts/patch_ck_cuda_gate.py --check --report"
+
       - name: Tag + push (only on push / dispatch, after gates pass)
         if: github.event_name != 'pull_request'
         run: |
